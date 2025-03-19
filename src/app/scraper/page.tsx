@@ -12,7 +12,7 @@ type Location = {
 };
 
 export default function Home() {
-  const [keywords, setKeywords] = useState('Python');
+  const [keywords, setKeywords] = useState('');
   const [location, setLocation] = useState('');
   const [method, setMethod] = useState('default');
   const [pageNum, setPageNum] = useState(0);
@@ -135,7 +135,7 @@ export default function Home() {
               value={keywords}
               onChange={(e) => setKeywords(e.target.value)}
               className="w-full p-2 border rounded"
-              required
+              // required
             />
           </div>
           

@@ -8,14 +8,16 @@ export default function JobList({ jobs }: JobListProps) {
   return (
     <div className="grid gap-4">
       {jobs.map((job) => {
-        const formattedDate = new Date(job.created_at).toLocaleString('en-US', {
-          month: 'short',
-          day: '2-digit',
-          year: 'numeric',
-          hour: '2-digit',
-          minute: '2-digit',
-          hour12: true,
-        });
+        const formattedDate = job.created_at 
+          ? new Date(job.created_at).toLocaleString('en-US', {
+              month: 'short',
+              day: '2-digit',
+              year: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+              hour12: true,
+            })
+          : 'Date not available';
 
         return (
           <div key={job.id} className="border p-4 rounded-lg">

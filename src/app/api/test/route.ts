@@ -10,15 +10,16 @@ export async function GET(request: Request) {
     // Get the method from the query parameter
     const { searchParams } = new URL(request.url);
     const method = searchParams.get('method') || 'default';
-    const keywords = searchParams.get('keywords') || 'Python';
-    const location = searchParams.get('location') || 'Las Vegas, Nevada, United States';
-    const pageNum = parseInt(searchParams.get('pageNum') || '0', 10); // Get pageNum from query parameters
-    
+    const keywords = searchParams.get('keywords') || '';
+    const location = searchParams.get('location') || 'Colorado, United States';
+    const pageNum = parseInt(searchParams.get('pageNum') || '0', 10); // Ensure pageNum is a number
+    const geoId = '103644278'; // Set the geoId as needed
+
     let jobs: ImportedJob[] = []; // Use the imported Job type
     
     if (method === 'default' || method === 'proxy') {
       console.log('Using default method (proxy)');
-      jobs = await scraper.scrapeJobs(keywords, location, pageNum); // Pass pageNum to the scraper
+      jobs = await scraper.scrapeJobs(keywords, location, geoId, pageNum); // Pass geoId and pageNum to the scraper
     } else if (method === 'rss') {
       console.log('Using RSS method');
       jobs = await scraper.scrapeLinkedInRSS();
