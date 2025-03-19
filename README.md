@@ -1,36 +1,76 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# LinkedIn Job Scraper
+
+A Next.js application that scrapes job listings from LinkedIn using various methods.
+
+## Features
+
+- Multiple scraping methods:
+  - Proxy method (default): Uses a CORS proxy to fetch job listings
+  - RSS method: Scrapes LinkedIn's RSS feed
+  - Puppeteer method: Uses browser automation
+  - Simple method: Direct API request
+
+- Customizable search parameters:
+  - Keywords (e.g., "Python", "JavaScript")
+  - Location (e.g., "Las Vegas", "Remote")
+
+## API Usage
+
+The API endpoint is available at `/api/test` and accepts the following query parameters:
+
+- `method`: Scraping method to use (default, proxy, rss, puppeteer, simple)
+- `keywords`: Job search keywords (default: "Python")
+- `location`: Job search location (default: "Las Vegas, Nevada, United States")
+
+Example:
+```
+GET /api/test?keywords=JavaScript&location=Remote
+```
+
+Response format:
+```json
+{
+  "success": true,
+  "method": "default",
+  "keywords": "JavaScript",
+  "location": "Remote",
+  "jobs": [
+    {
+      "title": "Software Engineer",
+      "company": "Example Company",
+      "location": "Remote",
+      "source": "linkedin",
+      "url": "https://www.linkedin.com/jobs/view/...",
+      "posted_at": "2025-03-17T06:33:12.809Z"
+    },
+    ...
+  ]
+}
+```
 
 ## Getting Started
 
-First, run the development server:
+1. Clone the repository
+2. Install dependencies:
+   ```
+   npm install
+   ```
+3. Run the development server:
+   ```
+   npm run dev
+   ```
+4. Access the API at http://localhost:3000/api/test
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+## Technologies Used
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+- Next.js
+- TypeScript
+- Axios
+- Cheerio
+- Puppeteer (for browser automation method)
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Notes
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
-
-## Learn More
-
-To learn more about Next.js, take a look at the following resources:
-
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- The proxy method uses a free CORS proxy service (api.allorigins.win) to bypass LinkedIn's restrictions
+- Different scraping methods may yield different results
+- LinkedIn frequently updates their site, so scraping methods may need to be updated accordingly
