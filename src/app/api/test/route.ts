@@ -1,6 +1,7 @@
 import { Job as ImportedJob } from '@/lib/types/job'; // Import the Job type
 import { JobScraper } from '@/lib/scraper';
 import { NextResponse } from 'next/server';
+import { supabase } from '@/lib/supabase'; // Ensure you import supabase
 
 export async function GET(request: Request) {
   try {
@@ -10,10 +11,23 @@ export async function GET(request: Request) {
     // Get the method from the query parameter
     const { searchParams } = new URL(request.url);
     const method = searchParams.get('method') || 'default';
-    const keywords = searchParams.get('keywords') || 'Developer';
-    const location = searchParams.get('location') || 'California, United States';
+    const keywords = searchParams.get('keywords') || 'Python';
+    const location = searchParams.get('location') || 'New York, United States';
     const pageNum = parseInt(searchParams.get('pageNum') || '0', 10); // Ensure pageNum is a number
-    const geoId = '103644278'; // Set the geoId as needed
+
+    // Fetch geoId from Supabase based on the location
+    const { data: locationData, error: locationError } = await supabase
+      .from('locations')
+      .select('geoid')
+      .eq('name', location)
+      .single(); // Get a single record
+
+    if (locationError || !locationData) {
+      console.error('Error fetching geoId:', locationError);
+      return NextResponse.json({ success: false, error: 'Failed to fetch geoId' }, { status: 500 });
+    }
+
+    const geoId = locationData.geoid; // Use the fetched geoId
 
     let jobs: ImportedJob[] = []; // Use the imported Job type
     
