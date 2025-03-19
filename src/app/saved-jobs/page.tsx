@@ -1,9 +1,21 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { DataTable } from './components/data-table';
+import { columns } from './components/columns';
 import { supabaseClient } from '@/lib/supabase';
-import { Job } from '@/lib/types';
 import Link from 'next/link';
+
+// Define the Job type
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  posted_at: string;
+  scraped_at: string;
+};
 
 export default function SavedJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -11,44 +23,31 @@ export default function SavedJobs() {
   const [error, setError] = useState('');
 
   useEffect(() => {
-    async function fetchJobs() {
+    const fetchJobs = async () => {
       try {
         setLoading(true);
-        
-        const { data, error } = await supabaseClient
-          .from('jobs')
-          .select('*')
-          .order('posted_at', { ascending: false });
-        
-        if (error) {
-          console.error('Supabase error:', error);
-          throw error;
-        }
-        
-        setJobs(data || []);
+        const { data } = await supabaseClient.from('jobs').select('*');
+        setJobs(data || []); // Handle null case by providing empty array default
       } catch (err) {
         console.error('Error fetching jobs:', err);
         setError('Failed to load saved jobs');
       } finally {
         setLoading(false);
       }
-    }
-    
+    };
+
     fetchJobs();
   }, []);
 
-  const deleteJob = async (id: string) => {
+  const handleDelete = async (id: string) => {
     try {
-      const { error } = await supabaseClient
-        .from('jobs')
-        .delete()
-        .eq('id', id);
-      
+      const { error } = await supabaseClient.from('jobs').delete().eq('id', id);
       if (error) {
+        console.error('Error deleting job:', error);
         throw error;
       }
       
-      setJobs(jobs.filter(job => job.id !== id));
+      setJobs((prevJobs) => prevJobs.filter((job) => job.id !== id));
     } catch (err) {
       console.error('Error deleting job:', err);
       alert('Failed to delete job');
@@ -85,33 +84,8 @@ export default function SavedJobs() {
         {jobs.length > 0 && (
           <>
             <p className="mb-4">Found {jobs.length} saved jobs</p>
-            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-              {jobs.map((job) => (
-                <div key={job.id} className="border rounded p-4 hover:shadow-md">
-                  <h3 className="text-lg font-bold">{job.title}</h3>
-                  <p className="text-gray-700">{job.company}</p>
-                  <p className="text-gray-600">{job.location}</p>
-                  <p className="text-sm text-gray-500 mb-2">
-                    Posted: {new Date(job.created_at || job.posted_at).toLocaleDateString()}
-                  </p>
-                  <div className="flex justify-between mt-4">
-                    <a
-                      href={job.url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-500 hover:underline"
-                    >
-                      View Job
-                    </a>
-                    <button
-                      onClick={() => deleteJob(job.id)}
-                      className="text-red-500 hover:underline"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              ))}
+            <div className="container mx-auto py-10">
+              <DataTable columns={columns(handleDelete)} data={jobs} />
             </div>
           </>
         )}
