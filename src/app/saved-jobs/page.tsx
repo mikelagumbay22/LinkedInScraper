@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { supabase } from '@/lib/supabase';
+import { supabaseClient } from '@/lib/supabase';
 import { Job } from '@/lib/types';
 import Link from 'next/link';
 
@@ -15,12 +15,13 @@ export default function SavedJobs() {
       try {
         setLoading(true);
         
-        const { data, error } = await supabase
+        const { data, error } = await supabaseClient
           .from('jobs')
           .select('*')
-          .order('created_at', { ascending: false });
+          .order('posted_at', { ascending: false });
         
         if (error) {
+          console.error('Supabase error:', error);
           throw error;
         }
         
@@ -38,7 +39,7 @@ export default function SavedJobs() {
 
   const deleteJob = async (id: string) => {
     try {
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('jobs')
         .delete()
         .eq('id', id);

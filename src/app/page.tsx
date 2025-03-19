@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { Job } from '@/lib/types';
 import Link from 'next/link';
-import { supabase } from '@/lib/supabase';
+import { supabaseClient } from '@/lib/supabase';
 
 export default function Home() {
   const [keywords, setKeywords] = useState('Python');
@@ -74,7 +74,7 @@ export default function Home() {
       }));
 
       // Insert jobs into Supabase
-      const { error } = await supabase
+      const { error } = await supabaseClient
         .from('jobs')
         .upsert(jobsToInsert, {
           onConflict: 'url', // Prevent duplicates based on URL
