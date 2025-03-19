@@ -75,7 +75,7 @@ export default function SavedJobs() {
         {!loading && jobs.length === 0 && (
           <div className="text-center py-8">
             <p className="text-gray-500 mb-4">No saved jobs found.</p>
-            <Link href="/" className="text-blue-500 hover:underline">
+            <Link href="/scraper" className="text-blue-500 hover:underline">
               Go back to search for jobs
             </Link>
           </div>

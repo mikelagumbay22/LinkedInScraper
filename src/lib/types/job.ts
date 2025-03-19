@@ -7,4 +7,5 @@ export interface Job {
   url: string;
   posted_at: string;
   created_at?: string;
+  scrapped_at?: string;
 }

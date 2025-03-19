@@ -43,11 +43,11 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
     accessorKey: "url",
     header: "URL",
   },
-  {
-    accessorKey: "posted_at",
-    header: "Posted Date",
-    cell: ({ row }) => formatDate(row.getValue("posted_at")),
-  },
+  // {
+  //   accessorKey: "posted_at",
+  //   header: "Posted Date",
+  //   cell: ({ row }) => formatDate(row.getValue("posted_at")),
+  // },
   {
     accessorKey: "scrapped_at",
     header: "Scraped Date",

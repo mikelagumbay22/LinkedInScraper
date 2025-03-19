@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import cron from 'node-cron';
 import { JobScraper } from '../../../lib/scraper';
-import { supabase } from '../../../lib/supabase';
+import { supabaseClient } from '../../../lib/supabase';
 
 const scraper = new JobScraper();
 
@@ -17,7 +17,7 @@ export async function GET() {
       const allJobs = [...indeedJobs, ...linkedInJobs];
 
       if (allJobs.length > 0) {
-        const { error } = await supabase
+        const { error } = await supabaseClient
           .from('jobs')
           .insert(allJobs);
 

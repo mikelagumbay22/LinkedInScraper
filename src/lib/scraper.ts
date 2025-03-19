@@ -21,52 +21,56 @@ export class JobScraper {
   private readonly LIMIT = 15;
 
   // Main method - uses the proxy method which is working
-  async scrapeJobs(keywords: string = 'Python', location: string = 'Las Vegas, Nevada, United States'): Promise<Job[]> {
-    try {
-      console.log(`Scraping jobs for ${keywords} in ${location}...`);
-      
-      // Encode parameters
-      const encodedKeywords = encodeURIComponent(keywords);
-      const encodedLocation = encodeURIComponent(location);
-      
-      // Get the appropriate geoId for the location
-      const geoId = locationGeoIds[location] || '103644278'; // Default to US if location not found
-      
-      // LinkedIn jobs URL with dynamic geoId
-      const targetUrl = `https://www.linkedin.com/jobs/search?keywords=${encodedKeywords}&location=${encodedLocation}&geoId=${geoId}&f_TPR=r86400&position=1&pageNum=0`;
-      
-      console.log(`Target URL: ${targetUrl}`);
-      
-      // Using a free CORS proxy service
-      const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-      
-      const response = await axios.get(proxyUrl, {
-        headers: {
-          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-        },
-        timeout: 15000
-      });
-      
-      console.log('Proxy response status:', response.status);
-      
-      if (response.data && response.data.contents) {
-        // Parse the content from the proxy response
-        const jobs = this.parseLinkedIn(response.data.contents);
+  async scrapeJobs(keywords: string = 'Python', location: string = 'Las Vegas, Nevada, United States', pageNum: number = 0): Promise<Job[]> {
+    const maxRetries = 3; // Maximum number of retries
+    let attempt = 0;
+
+    while (attempt < maxRetries) {
+      try {
+        console.log(`Scraping jobs for ${keywords} in ${location} on page ${pageNum}...`);
         
-        // Add location source to each job for debugging
-        jobs.forEach(job => {
-          job.source = `linkedin (${location})`;
+        // Encode parameters
+        const encodedKeywords = encodeURIComponent(keywords);
+        const encodedLocation = encodeURIComponent(location);
+        const geoId = locationGeoIds[location] || '103644278'; // Default to US if location not found
+        
+        const targetUrl = `https://www.linkedin.com/jobs/search?keywords=${encodedKeywords}&location=${encodedLocation}&geoId=${geoId}&f_TPR=r86400&position=1&pageNum=${pageNum}`;
+        console.log(`Target URL: ${targetUrl}`);
+        
+        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
+        
+        const response = await axios.get(proxyUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+          timeout: 15000
         });
         
-        return jobs;
-      } else {
-        console.error('No content in proxy response');
-        return [];
+        console.log('Proxy response status:', response.status);
+        
+        if (response.data && response.data.contents) {
+          const jobs = this.parseLinkedIn(response.data.contents);
+          jobs.forEach(job => {
+            job.source = `linkedin (${location})`;
+          });
+          return jobs;
+        } else {
+          console.error('No content in proxy response');
+          return [];
+        }
+      } catch (error) {
+        console.error('Error in scrapeJobs:', error);
+        attempt++;
+        if (attempt < maxRetries) {
+          console.log(`Retrying... (${attempt}/${maxRetries})`);
+          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before retrying
+        } else {
+          return []; // Return empty array after max retries
+        }
       }
-    } catch (error) {
-      console.error('Error in scrapeJobs:', error);
-      return [];
     }
+
+    return []; // Ensure the function always returns a Job[] type
   }
 
   async scrapeIndeed(): Promise<Job[]> {
