@@ -10,8 +10,8 @@ export async function GET(request: Request) {
     // Get the method from the query parameter
     const { searchParams } = new URL(request.url);
     const method = searchParams.get('method') || 'default';
-    const keywords = searchParams.get('keywords') || '';
-    const location = searchParams.get('location') || 'Colorado, United States';
+    const keywords = searchParams.get('keywords') || 'Developer';
+    const location = searchParams.get('location') || 'California, United States';
     const pageNum = parseInt(searchParams.get('pageNum') || '0', 10); // Ensure pageNum is a number
     const geoId = '103644278'; // Set the geoId as needed
 

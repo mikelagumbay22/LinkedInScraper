@@ -1,4 +1,4 @@
-import axios from 'axios';
+import axios, { AxiosError } from 'axios';
 import { load, CheerioAPI } from 'cheerio';
 import { Job } from './types/job';
 import puppeteer from 'puppeteer';
@@ -45,7 +45,13 @@ export class JobScraper {
           return [];
         }
       } catch (error) {
-        console.error('Error in scrapeJobs:', error);
+        const err = error as AxiosError; // Type assertion to AxiosError
+        console.error('Error in scrapeJobs:', err.message);
+        if (err.response) {
+            console.error('Proxy response data:', err.response.data);
+        } else {
+            console.error('Error details:', err); // Log the entire error if no response
+        }
         attempt++;
         if (attempt < maxRetries) {
           console.log(`Retrying... (${attempt}/${maxRetries})`);
@@ -81,7 +87,7 @@ export class JobScraper {
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
       
       // Navigate to LinkedIn jobs page
-      const url = 'https://www.linkedin.com/jobs/search?keywords=Python&location=Las%20Vegas%2C%20Nevada%2C%20United%20States&geoId=100293800&f_TPR=r86400&position=1&pageNum=0';
+      const url = 'https://www.linkedin.com/jobs/search?keywords=Developer&location=California%2C%20United%20States&geoId=102095887&f_TPR=r86400&position=1&pageNum=0';
       console.log(`Navigating to ${url}`);
       
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
@@ -114,7 +120,7 @@ export class JobScraper {
       console.log('Starting LinkedIn RSS scraping...');
       
       // LinkedIn RSS feed URL for jobs
-      const url = 'https://www.linkedin.com/jobs/search/rss?keywords=Python&location=Las%20Vegas%2C%20Nevada%2C%20United%20States&geoId=100293800&f_TPR=r86400&position=1&pageNum=0';
+      const url = 'https://www.linkedin.com/jobs/search?keywords=Developer&location=California%2C%20United%20States&geoId=102095887&f_TPR=r86400&position=1&pageNum=0';
       
       const response = await axios.get(url, {
         headers: {
@@ -142,7 +148,7 @@ export class JobScraper {
       console.log('Starting LinkedIn scraping with proxy...');
       
       // LinkedIn jobs URL
-      const targetUrl = 'https://www.linkedin.com/jobs/search?keywords=Python&location=Las%20Vegas%2C%20Nevada%2C%20United%20States&geoId=100293800&f_TPR=r86400&position=1&pageNum=0';
+      const targetUrl = 'https://www.linkedin.com/jobs/search?keywords=Developer&location=California%2C%20United%20States&geoId=102095887&f_TPR=r86400&position=1&pageNum=0';
       
       // Using a free CORS proxy service
       const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
@@ -176,7 +182,7 @@ export class JobScraper {
       console.log('Starting LinkedIn simple scraping...');
       
       // LinkedIn jobs API URL
-      const url = 'https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=Python&location=Las%20Vegas%2C%20Nevada%2C%20United%20States&geoId=100293800&trk=public_jobs_jobs-search-bar_search-submit&start=0';
+      const url = 'https://www.linkedin.com/jobs/search?keywords=Developer&location=California%2C%20United%20States&geoId=102095887&f_TPR=r86400&position=1&pageNum=0';
       
       const response = await axios.get(url, {
         headers: {
