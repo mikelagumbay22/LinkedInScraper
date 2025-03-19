@@ -3,36 +3,22 @@ import { load, CheerioAPI } from 'cheerio';
 import { Job } from './types/job';
 import puppeteer from 'puppeteer';
 
-// Add a mapping of locations to geoIds
-const locationGeoIds: Record<string, string> = {
-  'Las Vegas, Nevada, United States': '100293800',
-  'San Francisco, California, United States': '102277331',
-  'New York, New York, United States': '105080838',
-  'California, United States': '102095887',
-  'Nevada, United States': '101690912',
-  'Texas, United States': '102748797',
-  'United States': '103644278',
-  'Remote': '103644278' // Using US geoId for Remote
-};
-
-
 export class JobScraper {
   private scrapeCount = 0;
   private readonly LIMIT = 15;
 
   // Main method - uses the proxy method which is working
-  async scrapeJobs(keywords: string = 'Python', location: string = 'Las Vegas, Nevada, United States', pageNum: number = 0): Promise<Job[]> {
+  async scrapeJobs(keywords: string = 'Python', location: string = 'Colorado, United States', geoId: string = '103644278', pageNum: number = 0): Promise<Job[]> {
     const maxRetries = 3; // Maximum number of retries
     let attempt = 0;
 
     while (attempt < maxRetries) {
       try {
-        console.log(`Scraping jobs for ${keywords} in ${location} on page ${pageNum}...`);
+        console.log(`Scraping jobs for ${keywords} in ${location} with geoId ${geoId} on page ${pageNum}...`);
         
         // Encode parameters
         const encodedKeywords = encodeURIComponent(keywords);
-        const encodedLocation = encodeURIComponent(location);
-        const geoId = locationGeoIds[location] || '103644278'; // Default to US if location not found
+        const encodedLocation = encodeURIComponent(location); // Ensure location is encoded
         
         const targetUrl = `https://www.linkedin.com/jobs/search?keywords=${encodedKeywords}&location=${encodedLocation}&geoId=${geoId}&f_TPR=r86400&position=1&pageNum=${pageNum}`;
         console.log(`Target URL: ${targetUrl}`);

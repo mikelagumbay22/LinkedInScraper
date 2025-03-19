@@ -1,13 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Job } from '@/lib/types';
 import Link from 'next/link';
 import { supabaseClient } from '@/lib/supabase';
 
+// Define a type for the location
+type Location = {
+  name: string;
+  geoid: string;
+};
+
 export default function Home() {
   const [keywords, setKeywords] = useState('Python');
-  const [location, setLocation] = useState('Las Vegas, Nevada, United States');
+  const [location, setLocation] = useState('');
   const [method, setMethod] = useState('default');
   const [pageNum, setPageNum] = useState(0);
   const [jobs, setJobs] = useState<Job[]>([]);
@@ -15,27 +21,42 @@ export default function Home() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
+  const [locations, setLocations] = useState<Location[]>([]); // State for locations
 
-  // Updated predefined locations with geoIds
-  const predefinedLocations = [
-    'Las Vegas, Nevada, United States',
-    'San Francisco, California, United States',
-    'New York, New York, United States',
-    'California, United States',
-    'Nevada, United States',
-    'Texas, United States',
-    'United States',
-    'Remote'
-  ];
+  useEffect(() => {
+    const fetchLocations = async () => {
+      try {
+        const { data, error } = await supabaseClient
+          .from('locations')
+          .select('name, geoid');
+
+        if (error) throw error;
+
+        setLocations(data as Location[] || []); // Cast data to Location[]
+        if (data && data.length > 0) {
+          setLocation(data[0].name); // Set default location to the first fetched location
+        }
+      } catch (err) {
+        console.error('Error fetching locations:', err);
+        setError('Failed to load locations');
+      }
+    };
+
+    fetchLocations();
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError('');
     
+    // Find the geoId for the selected location
+    const selectedLocation = locations.find(loc => loc.name === location);
+    const geoId = selectedLocation ? selectedLocation.geoid : '103644278'; // Default to US if not found
+    
     try {
       const response = await fetch(
-        `/api/test?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&method=${method}&pageNum=${pageNum}`
+        `/api/test?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&method=${method}&pageNum=${pageNum}&geoId=${geoId}`
       );
       
       const data = await response.json();
@@ -128,8 +149,8 @@ export default function Home() {
               onChange={(e) => setLocation(e.target.value)}
               className="w-full p-2 border rounded"
             >
-              {predefinedLocations.map((loc) => (
-                <option key={loc} value={loc}>{loc}</option>
+              {locations.map((loc) => (
+                <option key={loc.geoid} value={loc.name}>{loc.name}</option>
               ))}
               <option value="custom">Custom Location...</option>
             </select>
