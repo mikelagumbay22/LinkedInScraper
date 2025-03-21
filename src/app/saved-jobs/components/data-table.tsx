@@ -80,20 +80,6 @@ export function DataTable<TData, TValue>({
     },
   });
 
-  const fetchWithRetry = async (url: string, retries = 3) => {
-    for (let i = 0; i < retries; i++) {
-      try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-        const data = await response.json();
-        return data;
-      } catch (error) {
-        if (i === retries - 1) throw error;
-        await new Promise(resolve => setTimeout(resolve, 1000 * (i + 1))); // Exponential backoff
-      }
-    }
-  };
-
   return (
     <div>
       <div className="flex items-center py-4 gap-2">
