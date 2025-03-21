@@ -2,7 +2,7 @@
 
 import { ColumnDef } from "@tanstack/react-table";
 import { Button } from "@/components/ui/button";
-import { Checkbox } from '@/components/ui/checkbox';
+import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown } from "lucide-react";
 
 // Function to format date
@@ -10,20 +10,23 @@ const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return "N/A";
   const date = new Date(dateString);
   if (isNaN(date.getTime())) return "Invalid Date";
-  
+
   const options: Intl.DateTimeFormatOptions = {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "numeric",
     hour12: true,
   };
-  return new Intl.DateTimeFormat('en-US', options).format(date);
+  return new Intl.DateTimeFormat("en-US", options).format(date);
 };
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] => [
+export const columns = (
+  handleDelete: (id: string) => void
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+): ColumnDef<any>[] => [
   {
     id: "select",
     header: ({ table }) => (
@@ -57,7 +60,7 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
           Job Title
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -71,7 +74,7 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
           Company
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -85,7 +88,7 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
           Location
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
   },
   {
@@ -103,7 +106,7 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
           Scraped Date
           <ArrowUpDown className="ml-2 h-4 w-4" />
         </Button>
-      )
+      );
     },
     cell: ({ row }) => formatDate(row.getValue("scrapped_at")),
   },
@@ -113,10 +116,7 @@ export const columns = (handleDelete: (id: string) => void): ColumnDef<any>[] =>
     cell: ({ row }) => {
       const job = row.original;
       return (
-        <Button 
-          variant="outline" 
-          onClick={() => handleDelete(job.id)}
-        >
+        <Button variant="outline" onClick={() => handleDelete(job.id)}>
           Delete
         </Button>
       );

@@ -43,8 +43,11 @@ export function DataTable<TData, TValue>({
   onSelectionChange,
 }: DataTableProps<TData, TValue>) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
@@ -58,12 +61,13 @@ export function DataTable<TData, TValue>({
     onColumnFiltersChange: setColumnFilters,
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: (updater) => {
-      const newState = typeof updater === 'function' ? updater(rowSelection) : updater;
+      const newState =
+        typeof updater === "function" ? updater(rowSelection) : updater;
       setRowSelection(newState);
       if (onSelectionChange) {
         const selectedIds = Object.keys(newState)
-          .filter(key => newState[key])
-          .map(index => (data[parseInt(index)] as { id: string }).id);
+          .filter((key) => newState[key])
+          .map((index) => (data[parseInt(index)] as { id: string }).id);
         onSelectionChange(selectedIds);
       }
     },
@@ -101,7 +105,9 @@ export function DataTable<TData, TValue>({
         />
         <Input
           placeholder="Filter locations..."
-          value={(table.getColumn("location")?.getFilterValue() as string) ?? ""}
+          value={
+            (table.getColumn("location")?.getFilterValue() as string) ?? ""
+          }
           onChange={(event) =>
             table.getColumn("location")?.setFilterValue(event.target.value)
           }
@@ -129,7 +135,7 @@ export function DataTable<TData, TValue>({
                   >
                     {column.id}
                   </DropdownMenuCheckboxItem>
-                )
+                );
               })}
           </DropdownMenuContent>
         </DropdownMenu>
@@ -162,14 +168,20 @@ export function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id}>
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </TableCell>
                   ))}
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={columns.length} className="h-24 text-center">
+                <TableCell
+                  colSpan={columns.length}
+                  className="h-24 text-center"
+                >
                   No results.
                 </TableCell>
               </TableRow>
