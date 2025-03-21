@@ -1,9 +1,11 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { Job } from '@/lib/types';
 import Link from 'next/link';
 import { supabaseClient } from '@/lib/supabase';
+import AutoJobProcessor from '@/components/AutoJobProcessor';
+
 
 // Define a type for the location
 type Location = {
@@ -22,6 +24,11 @@ export default function Home() {
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]); // State for locations
+  const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+
+  // Add these refs to control the form
+  const searchButtonRef = useRef<HTMLButtonElement>(null);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     const fetchLocations = async () => {
@@ -84,7 +91,6 @@ export default function Home() {
     setSaveError('');
 
     try {
-      // Prepare jobs data for insertion
       const jobsToInsert = jobs.map(job => ({
         title: job.title,
         company: job.company,
@@ -95,22 +101,45 @@ export default function Home() {
         scrapped_at: new Date().toISOString()
       }));
 
-      // Insert jobs into Supabase
       const { error } = await supabaseClient
         .from('jobs')
         .upsert(jobsToInsert, {
-          onConflict: 'url', // Prevent duplicates based on URL
+          onConflict: 'url',
           ignoreDuplicates: true
         });
 
       if (error) throw error;
 
-      alert(`Successfully saved ${jobs.length} jobs to database!`);
+      // Only show alert if not auto-processing
+      if (!isAutoProcessing) {
+        alert(`Successfully saved ${jobs.length} jobs to database!`);
+      } else {
+        console.log(`Successfully saved ${jobs.length} jobs to database!`);
+      }
     } catch (err) {
       console.error('Error saving jobs:', err);
       setSaveError('Failed to save jobs to database');
     } finally {
       setSaving(false);
+    }
+  };
+
+  // Add this function to handle location changes
+  const handleLocationChange = (newLocation: string) => {
+    setLocation(newLocation);
+  };
+
+  // Add this function to trigger search
+  const handleSearchTrigger = () => {
+    if (searchButtonRef.current) {
+      searchButtonRef.current.click();
+    }
+  };
+
+  // Add this function to trigger save
+  const handleSaveTrigger = () => {
+    if (saveButtonRef.current) {
+      saveButtonRef.current.click();
     }
   };
 
@@ -121,7 +150,15 @@ export default function Home() {
         <Link href="/saved-jobs" className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded">
           View Saved Jobs
         </Link>
-      </div>
+      </div>      
+  
+      <AutoJobProcessor 
+        onLocationChange={handleLocationChange}
+        onSearchTrigger={handleSearchTrigger}
+        onSaveTrigger={handleSaveTrigger}
+        jobs={jobs}
+        onRunningStateChange={setIsAutoProcessing}
+      />
       
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-8">
         <div className="flex flex-col gap-4">
@@ -197,6 +234,7 @@ export default function Home() {
           </div>
           
           <button
+            ref={searchButtonRef}
             type="submit"
             disabled={loading}
             className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
@@ -223,11 +261,12 @@ export default function Home() {
           <div className="flex justify-between items-center mb-4">
             <h2 className="text-2xl font-bold">Found {jobs.length} jobs</h2>
             <button
+              ref={saveButtonRef}
               onClick={handleSaveToDatabase}
               disabled={saving}
               className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
             >
-              {saving ? 'Saving...' : 'Save to Database'}
+              {saving ? 'Saving...' : 'Manual Save to Database'}
             </button>
           </div>
           

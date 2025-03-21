@@ -5,6 +5,7 @@ import { DataTable } from './components/data-table';
 import { columns } from './components/columns';
 import { supabaseClient } from '@/lib/supabase';
 import Link from 'next/link';
+import { CSVExportButton } from './components/csv-export-button';
 
 // Define the Job type
 type Job = {
@@ -21,6 +22,7 @@ export default function SavedJobs() {
   const [jobs, setJobs] = useState<Job[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [selectedRows, setSelectedRows] = useState<string[]>([]);
 
   useEffect(() => {
     const fetchJobs = async () => {
@@ -42,15 +44,30 @@ export default function SavedJobs() {
   const handleDelete = async (id: string) => {
     try {
       const { error } = await supabaseClient.from('jobs').delete().eq('id', id);
-      if (error) {
-        console.error('Error deleting job:', error);
-        throw error;
-      }
-      
+      if (error) throw error;
       setJobs((prevJobs) => prevJobs.filter((job) => job.id !== id));
     } catch (err) {
       console.error('Error deleting job:', err);
       alert('Failed to delete job');
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    if (!selectedRows.length) return;
+    
+    try {
+      const { error } = await supabaseClient
+        .from('jobs')
+        .delete()
+        .in('id', selectedRows);
+        
+      if (error) throw error;
+      
+      setJobs((prevJobs) => prevJobs.filter((job) => !selectedRows.includes(job.id)));
+      setSelectedRows([]);
+    } catch (err) {
+      console.error('Error deleting selected jobs:', err);
+      alert('Failed to delete selected jobs');
     }
   };
 
@@ -59,9 +76,19 @@ export default function SavedJobs() {
       <div className="w-full max-w-6xl">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Saved Jobs</h1>
-          <Link href="/" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
-            Back to Search
-          </Link>
+          <div className="flex gap-4">
+            <CSVExportButton data={jobs} />
+            <button
+              onClick={handleDeleteSelected}
+              disabled={selectedRows.length === 0}
+              className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
+            >
+              Delete Selected ({selectedRows.length})
+            </button>
+            <Link href="/" className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded">
+              Back to Search
+            </Link>
+          </div>
         </div>
         
         {loading && <p className="text-center py-8">Loading saved jobs...</p>}
@@ -85,7 +112,11 @@ export default function SavedJobs() {
           <>
             <p className="mb-4">Found {jobs.length} saved jobs</p>
             <div className="container mx-auto py-10">
-              <DataTable columns={columns(handleDelete)} data={jobs} />
+              <DataTable 
+                columns={columns(handleDelete)} 
+                data={jobs}
+                onSelectionChange={setSelectedRows}
+              />
             </div>
           </>
         )}
