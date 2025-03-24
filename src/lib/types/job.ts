@@ -8,4 +8,7 @@ export interface Job {
   posted_at: string;
   created_at?: string;
   scrapped_at?: string;
+  industry?: string;
+  is_remote?: boolean;
+  description?: string;
 }
