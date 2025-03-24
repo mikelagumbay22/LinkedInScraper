@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabaseClient } from "@/lib/supabase";
+import { PowerManager } from "@/lib/utils/power";
 
 type Location = {
   name: string;
@@ -15,6 +16,7 @@ interface AutoJobProcessorProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   jobs: any[];
   onRunningStateChange: (isRunning: boolean) => void;
+  onTotalJobsSaved: (total: number) => void;
 }
 
 export default function AutoJobProcessor({
@@ -22,41 +24,42 @@ export default function AutoJobProcessor({
   onSearchTrigger,
   onSaveTrigger,
   jobs,
+  onRunningStateChange,
+  onTotalJobsSaved,
 }: AutoJobProcessorProps) {
   const [isRunning, setIsRunning] = useState(false);
   const [currentLocation, setCurrentLocation] = useState<Location | null>(null);
   const [processedLocations, setProcessedLocations] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isWaitingForResults, setIsWaitingForResults] = useState(false);
+  const [powerManager] = useState(() => new PowerManager());
+  const [totalJobsSaved, setTotalJobsSaved] = useState(0);
 
   // Watch for jobs changes
   useEffect(() => {
     if (isWaitingForResults && jobs.length === 0) {
-      // If no jobs found, proceed to next location
       console.log(
         `No jobs found for ${currentLocation?.name}, moving to next location`
       );
       processNextLocation();
     } else if (isWaitingForResults && jobs.length > 0) {
-      // If jobs found, wait 5 minutes then save
       console.log(`Found ${jobs.length} jobs for ${currentLocation?.name}`);
+      setTotalJobsSaved(prev => prev + jobs.length);
       setTimeout(() => {
         onSaveTrigger();
         processNextLocation();
-      }, 5 * 60 * 1000);
+      }, 2 * 60 * 1000);
     }
   }, [jobs, isWaitingForResults]);
 
   const processNextLocation = async () => {
     try {
-      // Fetch all locations
       const { data: locations, error: locationsError } = await supabaseClient
         .from("locations")
         .select("name, geoid");
 
       if (locationsError) throw locationsError;
 
-      // Find the next unprocessed location
       const nextLocation = locations.find(
         (loc) => !processedLocations.includes(loc.name)
       );
@@ -64,41 +67,54 @@ export default function AutoJobProcessor({
       if (!nextLocation) {
         console.log("All locations processed");
         setIsRunning(false);
+        await powerManager.allowSleep();
+        onTotalJobsSaved(totalJobsSaved);
         return;
       }
 
       console.log(`Processing location: ${nextLocation.name}`);
       setCurrentLocation(nextLocation);
-
-      // Update the location in the form
       onLocationChange(nextLocation.name);
-
-      // Set waiting state and trigger search
       setIsWaitingForResults(true);
       onSearchTrigger();
-
-      // Update processed locations
       setProcessedLocations((prev) => [...prev, nextLocation.name]);
     } catch (err) {
       console.error("Error in auto processing:", err);
       setError(err instanceof Error ? err.message : "Unknown error");
       setIsRunning(false);
       setIsWaitingForResults(false);
+      await powerManager.allowSleep();
     }
   };
 
-  const startAutoProcess = () => {
+  const startAutoProcess = async () => {
     console.log("Starting auto process...");
+    const powerSuccess = await powerManager.preventSleep();
+    if (!powerSuccess) {
+      console.warn("Could not prevent sleep mode. The process may be interrupted if the computer goes to sleep.");
+    }
     setIsRunning(true);
+    onRunningStateChange(true);
     setError(null);
     processNextLocation();
   };
 
-  const stopAutoProcess = () => {
+  const stopAutoProcess = async () => {
     console.log("Stopping auto process...");
     setIsRunning(false);
+    onRunningStateChange(false);
     setIsWaitingForResults(false);
+    await powerManager.allowSleep();
   };
+
+  // Cleanup on component unmount
+  useEffect(() => {
+    return () => {
+      if (isRunning) {
+        powerManager.allowSleep();
+      }
+    };
+  }, [isRunning]);
 
   return (
     <div className="w-full max-w-2xl mb-8 p-4 border rounded">

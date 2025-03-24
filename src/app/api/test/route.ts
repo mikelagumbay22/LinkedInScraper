@@ -55,11 +55,28 @@ export async function GET(request: Request) {
       return jobs;
     })();
 
+    // Increase timeout to 120 seconds and add better error handling
     const scrapeTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Scraping operation timeout')), 25000)
+      setTimeout(() => reject(new Error('Scraping operation timed out after 120 seconds')), 120000)
     );
 
-    jobs = await Promise.race([scrapePromise, scrapeTimeoutPromise]) as ImportedJob[];
+    try {
+      jobs = await Promise.race([scrapePromise, scrapeTimeoutPromise]) as ImportedJob[];
+    } catch (error) {
+      console.error('Scraping error:', error);
+      // If scraping fails, try the simple method as a fallback
+      console.log('Attempting fallback to simple method...');
+      try {
+        jobs = await scraper.scrapeLinkedInSimple();
+      } catch (fallbackError) {
+        console.error('Fallback method also failed:', fallbackError);
+        return NextResponse.json({
+          success: false,
+          error: 'All scraping methods failed',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }, { status: 500 });
+      }
+    }
 
     // Process jobs to add industry and remote status
     jobs = jobs.map(job => {

@@ -25,6 +25,7 @@ export default function Home() {
   const [saveError, setSaveError] = useState('');
   const [locations, setLocations] = useState<Location[]>([]); // State for locations
   const [isAutoProcessing, setIsAutoProcessing] = useState(false);
+  const [totalJobsSaved, setTotalJobsSaved] = useState(0);
 
   // Add these refs to control the form
   const searchButtonRef = useRef<HTMLButtonElement>(null);
@@ -113,14 +114,19 @@ export default function Home() {
       // Only show alert if not auto-processing
       if (!isAutoProcessing) {
         alert(`Successfully saved ${jobs.length} jobs to database!`);
-      } else {
-        console.log(`Successfully saved ${jobs.length} jobs to database!`);
       }
     } catch (err) {
       console.error('Error saving jobs:', err);
       setSaveError('Failed to save jobs to database');
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleTotalJobsSaved = (total: number) => {
+    setTotalJobsSaved(total);
+    if (total > 0) {
+      alert(`Auto-processing completed! Total jobs saved: ${total}`);
     }
   };
 
@@ -147,9 +153,16 @@ export default function Home() {
     <main className="flex min-h-screen flex-col items-center p-8">
       <div className="w-full max-w-2xl flex justify-between items-center mb-8">
         <h1 className="text-4xl font-bold">LinkedIn Job Scraper</h1>
-        <Link href="/saved-jobs" className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded">
-          View Saved Jobs
-        </Link>
+        <div className="flex items-center gap-4">
+          {totalJobsSaved > 0 && (
+            <div className="text-sm text-gray-600">
+              Total Jobs Saved: {totalJobsSaved}
+            </div>
+          )}
+          <Link href="/saved-jobs" className="bg-green-500 hover:bg-green-600 text-white font-medium py-2 px-4 rounded">
+            View Saved Jobs
+          </Link>
+        </div>
       </div>      
   
       <AutoJobProcessor 
@@ -158,6 +171,7 @@ export default function Home() {
         onSaveTrigger={handleSaveTrigger}
         jobs={jobs}
         onRunningStateChange={setIsAutoProcessing}
+        onTotalJobsSaved={handleTotalJobsSaved}
       />
       
       <form onSubmit={handleSubmit} className="w-full max-w-2xl mb-8">

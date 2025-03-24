@@ -9,7 +9,7 @@ export class JobScraper {
 
   // Main method - uses the proxy method which is working
   async scrapeJobs(keywords: string = 'Python', location: string = 'Colorado, United States', geoId: string = '103644278', pageNum: number = 0): Promise<Job[]> {
-    const maxRetries = 3; // Maximum number of retries
+    const maxRetries = 3;
     let attempt = 0;
 
     while (attempt < maxRetries) {
@@ -18,19 +18,41 @@ export class JobScraper {
         
         // Encode parameters
         const encodedKeywords = encodeURIComponent(keywords);
-        const encodedLocation = encodeURIComponent(location); // Ensure location is encoded
+        const encodedLocation = encodeURIComponent(location);
         
         const targetUrl = `https://www.linkedin.com/jobs/search?keywords=${encodedKeywords}&location=${encodedLocation}&geoId=${geoId}&f_TPR=r86400&position=1&pageNum=${pageNum}`;
         console.log(`Target URL: ${targetUrl}`);
         
-        const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`;
-        
-        const response = await axios.get(proxyUrl, {
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-          },
-          timeout: 15000
-        });
+        // Try different proxy services in sequence with increased timeouts
+        const proxyUrls = [
+          `https://api.allorigins.win/get?url=${encodeURIComponent(targetUrl)}`,
+          `https://cors-anywhere.herokuapp.com/${targetUrl}`,
+          `https://api.codetabs.com/v1/proxy?quest=${targetUrl}`
+        ];
+
+        let response;
+        for (const proxyUrl of proxyUrls) {
+          try {
+            response = await axios.get(proxyUrl, {
+              headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+              },
+              timeout: 30000 // Increased timeout to 30 seconds per proxy
+            });
+            
+            if (response.status === 200) {
+              console.log(`Successfully used proxy: ${proxyUrl}`);
+              break;
+            }
+          } catch (error) {
+            console.log(`Proxy ${proxyUrl} failed:`, error instanceof Error ? error.message : 'Unknown error');
+            continue;
+          }
+        }
+
+        if (!response || response.status !== 200) {
+          throw new Error('All proxy attempts failed');
+        }
         
         console.log('Proxy response status:', response.status);
         
@@ -45,24 +67,26 @@ export class JobScraper {
           return [];
         }
       } catch (error) {
-        const err = error as AxiosError; // Type assertion to AxiosError
+        const err = error as AxiosError;
         console.error('Error in scrapeJobs:', err.message);
         if (err.response) {
-            console.error('Proxy response data:', err.response.data);
+          console.error('Proxy response data:', err.response.data);
         } else {
-            console.error('Error details:', err); // Log the entire error if no response
+          console.error('Error details:', err);
         }
         attempt++;
         if (attempt < maxRetries) {
           console.log(`Retrying... (${attempt}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 2000)); // Wait for 2 seconds before retrying
+          await new Promise(resolve => setTimeout(resolve, 5000)); // Increased delay between retries
         } else {
-          return []; // Return empty array after max retries
+          // If all retries fail, try the simple method as a fallback
+          console.log('All proxy attempts failed, trying simple method...');
+          return this.scrapeLinkedInSimple();
         }
       }
     }
 
-    return []; // Ensure the function always returns a Job[] type
+    return [];
   }
 
   async scrapeIndeed(): Promise<Job[]> {

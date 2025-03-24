@@ -8,8 +8,8 @@ export default function JobList({ jobs }: JobListProps) {
   return (
     <div className="grid gap-4">
       {jobs.map((job) => {
-        const formattedDate = job.created_at 
-          ? new Date(job.created_at).toLocaleString('en-US', {
+        const formattedDate = job.posted_at 
+          ? new Date(job.posted_at).toLocaleString('en-US', {
               month: 'short',
               day: '2-digit',
               year: 'numeric',
@@ -20,12 +20,12 @@ export default function JobList({ jobs }: JobListProps) {
           : 'Date not available';
 
         return (
-          <div key={job.id} className="border p-4 rounded-lg">
+          <div key={`${job.title}-${job.company}`} className="border p-4 rounded-lg">
             <h2 className="text-xl font-semibold">{job.title}</h2>
             <p className="text-gray-600">{job.company}</p>
             <p>{job.location}</p>
             <p>Source: {job.source}</p>
-            <p>Created: {formattedDate}</p>
+            <p>Posted: {formattedDate}</p>
             <a 
               href={job.url} 
               target="_blank" 
