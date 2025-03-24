@@ -48,7 +48,7 @@ export default function AutoJobProcessor({
       setTimeout(() => {
         onSaveTrigger();
         processNextLocation();
-      }, 2 * 60 * 1000);
+      }, 5 * 60 * 1000);
     }
   }, [jobs, isWaitingForResults]);
 
