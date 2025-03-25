@@ -3,6 +3,9 @@ import { JobScraper } from '@/lib/scraper';
 import { NextResponse } from 'next/server';
 import { supabase } from '@/lib/supabase'; // Ensure you import supabase
 
+export const maxDuration = 300; // 5 minutes
+export const dynamic = 'force-dynamic';
+
 export async function GET(request: Request) {
   try {
     console.log('Starting test route...');
@@ -38,44 +41,68 @@ export async function GET(request: Request) {
 
     let jobs: ImportedJob[] = []; // Use the imported Job type
     
+    // Set a longer timeout for the scraping operation
     const scrapePromise = (async () => {
-      if (method === 'default' || method === 'proxy') {
-        console.log('Using default method (proxy)');
-        jobs = await scraper.scrapeJobs(keywords, location, geoId, pageNum); // Pass geoId and pageNum to the scraper
-      } else if (method === 'rss') {
-        console.log('Using RSS method');
-        jobs = await scraper.scrapeLinkedInRSS();
-      } else if (method === 'puppeteer') {
-        console.log('Using Puppeteer method');
-        jobs = await scraper.scrapeLinkedIn();
-      } else if (method === 'simple') {
-        console.log('Using simple method');
-        jobs = await scraper.scrapeLinkedInSimple();
+      try {
+        if (method === 'default' || method === 'proxy') {
+          console.log('Using default method (proxy)');
+          jobs = await scraper.scrapeJobs(keywords, location, geoId, pageNum);
+        } else if (method === 'rss') {
+          console.log('Using RSS method');
+          jobs = await scraper.scrapeLinkedInRSS();
+        } else if (method === 'puppeteer') {
+          console.log('Using Puppeteer method');
+          jobs = await scraper.scrapeLinkedIn();
+        } else if (method === 'simple') {
+          console.log('Using simple method');
+          jobs = await scraper.scrapeLinkedInSimple();
+        }
+        return jobs;
+      } catch (error) {
+        console.error('Error in scraping method:', error);
+        throw error;
       }
-      return jobs;
     })();
 
-    // Increase timeout to 120 seconds and add better error handling
     const scrapeTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Scraping operation timed out after 120 seconds')), 120000)
+      setTimeout(() => reject(new Error('Scraping operation timed out after 240 seconds')), 240000)
     );
 
     try {
       jobs = await Promise.race([scrapePromise, scrapeTimeoutPromise]) as ImportedJob[];
     } catch (error) {
       console.error('Scraping error:', error);
-      // If scraping fails, try the simple method as a fallback
       console.log('Attempting fallback to simple method...');
       try {
         jobs = await scraper.scrapeLinkedInSimple();
       } catch (fallbackError) {
         console.error('Fallback method also failed:', fallbackError);
-        return NextResponse.json({
-          success: false,
-          error: 'All scraping methods failed',
-          details: error instanceof Error ? error.message : 'Unknown error'
-        }, { status: 500 });
+        return new NextResponse(
+          JSON.stringify({
+            success: false,
+            error: 'All scraping methods failed',
+            details: error instanceof Error ? error.message : 'Unknown error'
+          }),
+          { 
+            status: 500,
+            headers: {
+              'Content-Type': 'application/json',
+            }
+          }
+        );
       }
+    }
+
+    if (jobs.length === 0) {
+      return NextResponse.json({
+        success: true,
+        method,
+        keywords,
+        location,
+        jobs: [],
+        jobCount: 0,
+        message: 'No jobs found'
+      });
     }
 
     // Process jobs to add industry and remote status
@@ -105,26 +132,37 @@ export async function GET(request: Request) {
     });
     
     console.log('Test route completed with', jobs.length, 'jobs');
-    return NextResponse.json({
-      success: true,
-      method,
-      keywords,
-      location,
-      jobs,
-      jobCount: jobs.length
-    });
+    return new NextResponse(
+      JSON.stringify({
+        success: true,
+        method,
+        keywords,
+        location,
+        jobs,
+        jobCount: jobs.length
+      }),
+      { 
+        status: 200,
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      }
+    );
   } catch (error) {
     console.error('Error in test route:', error);
-    return NextResponse.json({
-      success: false,
-      error: error instanceof Error ? error.message : 'Failed to scrape jobs',
-      timestamp: new Date().toISOString()
-    }, { 
-      status: 500,
-      headers: {
-        'Content-Type': 'application/json'
+    return new NextResponse(
+      JSON.stringify({
+        success: false,
+        error: error instanceof Error ? error.message : 'Failed to scrape jobs',
+        timestamp: new Date().toISOString()
+      }),
+      { 
+        status: 500,
+        headers: {
+          'Content-Type': 'application/json',
+        }
       }
-    });
+    );
   }
 }
 

@@ -116,7 +116,7 @@ export default function AutoJobProcessor({
         powerManager.allowSleep();
       }
     };
-  }, [isRunning]);
+  }, [isRunning, powerManager]);
 
   return (
     <div className="w-full max-w-2xl mb-8 p-4 border rounded">
