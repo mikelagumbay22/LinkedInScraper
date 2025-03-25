@@ -44,7 +44,7 @@ export default function AutoJobProcessor({
       processNextLocation();
     } else if (isWaitingForResults && jobs.length > 0) {
       console.log(`Found ${jobs.length} jobs for ${currentLocation?.name}`);
-      setTotalJobsSaved(prev => prev + jobs.length);
+      setTotalJobsSaved((prev) => prev + jobs.length);
       setTimeout(() => {
         onSaveTrigger();
         processNextLocation();
@@ -91,7 +91,9 @@ export default function AutoJobProcessor({
     console.log("Starting auto process...");
     const powerSuccess = await powerManager.preventSleep();
     if (!powerSuccess) {
-      console.warn("Could not prevent sleep mode. The process may be interrupted if the computer goes to sleep.");
+      console.warn(
+        "Could not prevent sleep mode. The process may be interrupted if the computer goes to sleep."
+      );
     }
     setIsRunning(true);
     onRunningStateChange(true);
@@ -171,5 +173,3 @@ export default function AutoJobProcessor({
     </div>
   );
 }
-
-
