@@ -6,6 +6,7 @@ import { columns } from "./components/columns";
 import { supabaseClient } from "@/lib/supabase";
 import Link from "next/link";
 import { CSVExportButton } from "./components/csv-export-button";
+import { MergeButton } from "./components/merge-button";
 
 // Define the Job type
 type Job = {
@@ -79,6 +80,7 @@ export default function SavedJobs() {
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Saved Jobs</h1>
           <div className="flex gap-4">
+            <MergeButton />
             <CSVExportButton data={jobs} />
             <button
               onClick={handleDeleteSelected}
