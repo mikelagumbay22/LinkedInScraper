@@ -1,6 +1,6 @@
 import axios, { AxiosError } from 'axios';
 import { load, CheerioAPI } from 'cheerio';
-import { Job } from './types/job';
+import { Job, RawJobData } from './types/job';
 import puppeteer from 'puppeteer';
 
 export class JobScraper {
@@ -8,7 +8,7 @@ export class JobScraper {
   private readonly LIMIT = 15;
 
   // Main method - uses the proxy method which is working
-  async scrapeJobs(keywords: string = 'Python', location: string = 'Colorado, United States', geoId: string = '103644278', pageNum: number = 0): Promise<Job[]> {
+  async scrapeJobs(keywords: string = 'Python', location: string = 'Colorado, United States', geoId: string = '103644278', pageNum: number = 0): Promise<{ jobs: Job[], rawData: RawJobData[] }> {
     const maxRetries = 3;
     let attempt = 0;
 
@@ -33,11 +33,12 @@ export class JobScraper {
         let response;
         for (const proxyUrl of proxyUrls) {
           try {
+            console.log(`Trying proxy: ${proxyUrl}`);
             response = await axios.get(proxyUrl, {
               headers: {
                 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
               },
-              timeout: 30000 // Increased timeout to 30 seconds per proxy
+              timeout: 30000
             });
             
             if (response.status === 200) {
@@ -55,17 +56,55 @@ export class JobScraper {
         }
         
         console.log('Proxy response status:', response.status);
+        console.log('Response data type:', typeof response.data);
+        console.log('Response data keys:', Object.keys(response.data));
         
-        if (response.data && response.data.contents) {
-          const jobs = this.parseLinkedIn(response.data.contents);
-          jobs.forEach(job => {
-            job.source = `linkedin (${location})`;
-          });
-          return jobs;
+        let htmlContent = '';
+        if (response.data && typeof response.data === 'object') {
+          if (response.data.contents) {
+            htmlContent = response.data.contents;
+          } else if (response.data.data) {
+            htmlContent = response.data.data;
+          } else if (typeof response.data === 'string') {
+            htmlContent = response.data;
+          } else {
+            console.error('Unexpected response data structure:', response.data);
+            throw new Error('Invalid response data structure');
+          }
+        } else if (typeof response.data === 'string') {
+          htmlContent = response.data;
         } else {
-          console.error('No content in proxy response');
-          return [];
+          console.error('Unexpected response type:', typeof response.data);
+          throw new Error('Invalid response type');
         }
+
+        console.log('HTML content length:', htmlContent.length);
+        console.log('First 500 characters of HTML:', htmlContent.substring(0, 500));
+        
+        if (!htmlContent) {
+          console.error('No HTML content found in response');
+          return { jobs: [], rawData: [] };
+        }
+
+        // Check if the HTML contains job listings
+        if (!htmlContent.includes('jobs-search__results-list') && !htmlContent.includes('job-result-card') && !htmlContent.includes('job-card-list__entity')) {
+          console.error('HTML does not contain job listings structure');
+          console.log('HTML content preview:', htmlContent.substring(0, 1000));
+          return { jobs: [], rawData: [] };
+        }
+
+        const result = this.parseLinkedIn(htmlContent);
+        console.log('Parsing result:', {
+          jobsCount: result.jobs.length,
+          rawDataCount: result.rawData.length,
+          firstJob: result.jobs[0],
+          firstRawData: result.rawData[0]
+        });
+
+        result.jobs.forEach(job => {
+          job.source = `linkedin (${location})`;
+        });
+        return result;
       } catch (error) {
         const err = error as AxiosError;
         console.error('Error in scrapeJobs:', err.message);
@@ -77,16 +116,16 @@ export class JobScraper {
         attempt++;
         if (attempt < maxRetries) {
           console.log(`Retrying... (${attempt}/${maxRetries})`);
-          await new Promise(resolve => setTimeout(resolve, 5000)); // Increased delay between retries
+          await new Promise(resolve => setTimeout(resolve, 5000));
         } else {
-          // If all retries fail, try the simple method as a fallback
           console.log('All proxy attempts failed, trying simple method...');
-          return this.scrapeLinkedInSimple();
+          const simpleJobs = await this.scrapeLinkedInSimple();
+          return { jobs: simpleJobs, rawData: [] };
         }
       }
     }
 
-    return [];
+    return { jobs: [], rawData: [] };
   }
 
   async scrapeIndeed(): Promise<Job[]> {
@@ -125,13 +164,8 @@ export class JobScraper {
       console.log('Page content retrieved, length:', content.length);
       
       // Parse the content
-      const jobs = this.parseLinkedIn(content);
-      
-      // Close the browser
-      await browser.close();
-      console.log('Browser closed');
-      
-      return jobs;
+      const result = this.parseLinkedIn(content);
+      return result.jobs;
     } catch (error) {
       console.error('Error in scrapeLinkedIn:', error);
       return [];
@@ -188,8 +222,8 @@ export class JobScraper {
       
       if (response.data && response.data.contents) {
         // Parse the content from the proxy response
-        const jobs = this.parseLinkedIn(response.data.contents);
-        return jobs;
+        const result = this.parseLinkedIn(response.data.contents);
+        return result.jobs;
       } else {
         console.error('No content in proxy response');
         return [];
@@ -279,71 +313,153 @@ export class JobScraper {
     return jobs;
   }
 
-  private parseLinkedIn(html: string): Job[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  private parseLinkedIn(html: string): { jobs: Job[], rawData: RawJobData[] } {
     const $: CheerioAPI = load(html);
     const jobs: Job[] = [];
+    const rawData: RawJobData[] = [];
 
     console.log('Parsing LinkedIn HTML...');
+    console.log('HTML length:', html.length);
     
-    // Try different selectors
-    const jobCards = $('.jobs-search__results-list li');
+    // Try different selectors for job cards
+    const jobCards = $('.jobs-search__results-list li, .base-card, .job-result-card, .job-card-container, .job-card-list__entity');
     console.log('Job cards found:', jobCards.length);
     
-    if (jobCards.length === 0) {
-      // Try alternative selectors
-      const altJobCards = $('.base-card');
-      console.log('Alternative job cards found:', altJobCards.length);
-      
-      altJobCards.each((index: number, element) => {
-        const $element = $(element);
-        
-        const title = $element.find('.base-search-card__title').text().trim();
-        const company = $element.find('.base-search-card__subtitle').text().trim();
-        const location = $element.find('.job-search-card__location').text().trim();
-        const url = $element.find('a.base-card__full-link').attr('href') || '';
-        
-        // Trim the URL to simplified form
-        const trimmedUrl = this.simplifyLinkedInJobUrl(url);
-        
-        if (title && company) {
-          jobs.push({
-            title,
-            company,
-            location,
-            source: 'linkedin',
-            url: trimmedUrl,
-            posted_at: new Date().toISOString()
-          });
-        }
-      });
-    } else {
-      // Use original selectors
-      jobCards.each((index: number, element) => {
-        const $element = $(element);
-        
-        const title = $element.find('.base-search-card__title').text().trim();
-        const company = $element.find('.base-search-card__subtitle').text().trim();
-        const location = $element.find('.job-search-card__location').text().trim();
-        const url = $element.find('a.base-card__full-link').attr('href') || '';
-        
-        // Trim the URL to simplified form
-        const trimmedUrl = this.simplifyLinkedInJobUrl(url);
-        
-        if (title && company) {
-      jobs.push({
-            title,
-            company,
-            location,
-        source: 'linkedin',
-            url: trimmedUrl,
-            posted_at: new Date().toISOString()
-          });
-        }
-      });
+    // Log all possible job card selectors for debugging
+    console.log('Available selectors:', {
+      jobsList: $('.jobs-search__results-list li').length,
+      baseCard: $('.base-card').length,
+      jobResultCard: $('.job-result-card').length,
+      jobCardContainer: $('.job-card-container').length,
+      jobCardListEntity: $('.job-card-list__entity').length
+    });
+    
+    // Log the first job card's HTML structure if available
+    const firstCard = jobCards.first();
+    if (firstCard.length) {
+      console.log('First job card HTML structure:', firstCard.html());
+      console.log('First job card classes:', firstCard.attr('class'));
     }
+    
+    jobCards.each((index: number, element) => {
+      const $element = $(element);
+      
+      // Log the HTML structure for debugging
+      console.log(`Job card ${index} HTML:`, $element.html());
+      
+      // Extract basic information with multiple selector attempts
+      const title = $element.find('.base-search-card__title, .job-result-card__title, h3, h4, .job-card-container__title, .job-card-list__title, .job-card-list__entity-title').first().text().trim();
+      const company = $element.find('.base-search-card__subtitle, .job-result-card__company-name, .company-name, .job-card-container__company-name, .job-card-list__entity-name').first().text().trim();
+      const location = $element.find('.job-search-card__location, .job-result-card__location, .location, .job-card-container__location, .job-card-list__entity-location').first().text().trim();
+      const url = $element.find('a[href*="/jobs/view/"], .job-card-container__link, .job-card-list__entity-link').first().attr('href') || '';
+      
+      // Extract additional information with multiple selector attempts
+      const description = $element.find('.base-search-card__metadata, .job-result-card__description, .job-description, .job-card-container__description, .job-card-list__entity-description').first().text().trim();
+      const employmentType = $element.find('.job-search-card__employment-type, .job-result-card__employment-type, .employment-type, .job-card-container__employment-type, .job-card-list__entity-employment-type').first().text().trim();
+      const salary = $element.find('.job-search-card__salary-info, .job-result-card__salary, .salary-snippet, .job-card-container__salary, .job-card-list__entity-salary').first().text().trim();
+      const benefits = $element.find('.job-search-card__benefits, .job-result-card__benefits, .benefits-snippet, .job-card-container__benefits, .job-card-list__entity-benefits').first().text().trim();
+      const companySize = $element.find('.job-search-card__company-size, .company-size-snippet, .job-card-container__company-size, .job-card-list__entity-company-size').first().text().trim();
+      const companyIndustry = $element.find('.job-search-card__company-industry, .company-industry-snippet, .job-card-container__company-industry, .job-card-list__entity-company-industry').first().text().trim();
+      
+      // Extract company domain from URL if available
+      const companyUrl = $element.find('a[href*="/company/"], .job-card-container__company-link, .job-card-list__entity-company-link').first().attr('href') || '';
+      const companyDomain = companyUrl ? new URL(companyUrl).hostname : undefined;
+      
+      // Log extracted data for debugging
+      console.log('Extracted data:', {
+        title,
+        company,
+        location,
+        url,
+        description,
+        employmentType,
+        salary,
+        benefits,
+        companySize,
+        companyIndustry,
+        companyDomain
+      });
+      
+      // Create raw job data
+      const rawJobData: RawJobData = {
+        title,
+        company,
+        location,
+        url,
+        description,
+        employmentType,
+        salary,
+        benefits,
+        companySize,
+        companyIndustry,
+        companyUrl,
+        postedTime: $element.find('time, .job-result-card__posted-time, .job-card-container__posted-time, .job-card-list__entity-posted-time').first().text().trim(),
+        jobType: employmentType,
+        experienceLevel: $element.find('.job-search-card__experience-level, .experience-level-snippet, .job-card-container__experience-level, .job-card-list__entity-experience-level').first().text().trim(),
+        jobFunction: $element.find('.job-search-card__job-function, .job-function-snippet, .job-card-container__job-function, .job-card-list__entity-job-function').first().text().trim(),
+        jobLevel: $element.find('.job-search-card__job-level, .job-level-snippet, .job-card-container__job-level, .job-card-list__entity-job-level').first().text().trim(),
+        jobSchedule: $element.find('.job-search-card__job-schedule, .job-schedule-snippet, .job-card-container__job-schedule, .job-card-list__entity-job-schedule').first().text().trim(),
+        jobWorkplace: $element.find('.job-search-card__workplace, .workplace-snippet, .job-card-container__workplace, .job-card-list__entity-workplace').first().text().trim(),
+        jobLocation: location,
+        jobDescription: description,
+        companyDescription: $element.find('.company-search-card__description, .company-description-snippet, .job-card-container__company-description, .job-card-list__entity-company-description').first().text().trim(),
+        companyLogo: $element.find('.company-search-card__logo, .company-logo, .job-card-container__company-logo, .job-card-list__entity-company-logo').first().attr('src') || '',
+        companyFollowers: $element.find('.company-search-card__followers, .company-followers-snippet, .job-card-container__company-followers, .job-card-list__entity-company-followers').first().text().trim(),
+        companySpecialties: $element.find('.company-search-card__specialties, .company-specialties-snippet, .job-card-container__company-specialties, .job-card-list__entity-company-specialties').first().text().trim(),
+        companyWebsite: $element.find('.company-search-card__website, .company-website-snippet, .job-card-container__company-website, .job-card-list__entity-company-website').first().attr('href') || '',
+        companyHeadquarters: $element.find('.company-search-card__headquarters, .company-headquarters-snippet, .job-card-container__company-headquarters, .job-card-list__entity-company-headquarters').first().text().trim(),
+        companyFounded: $element.find('.company-search-card__founded, .company-founded-snippet, .job-card-container__company-founded, .job-card-list__entity-company-founded').first().text().trim(),
+        companyType: $element.find('.company-search-card__type, .company-type-snippet, .job-card-container__company-type, .job-card-list__entity-company-type').first().text().trim(),
+        companyServices: $element.find('.company-search-card__services, .company-services-snippet, .job-card-container__company-services, .job-card-list__entity-company-services').first().text().trim(),
+        companyTechnologies: $element.find('.company-search-card__technologies, .company-technologies-snippet, .job-card-container__company-technologies, .job-card-list__entity-company-technologies').first().text().trim(),
+        companyBenefits: benefits,
+        companyCulture: $element.find('.company-search-card__culture, .company-culture-snippet, .job-card-container__company-culture, .job-card-list__entity-company-culture').first().text().trim(),
+        companyValues: $element.find('.company-search-card__values, .company-values-snippet, .job-card-container__company-values, .job-card-list__entity-company-values').first().text().trim(),
+        companyMission: $element.find('.company-search-card__mission, .company-mission-snippet, .job-card-container__company-mission, .job-card-list__entity-company-mission').first().text().trim(),
+        companyVision: $element.find('.company-search-card__vision, .company-vision-snippet, .job-card-container__company-vision, .job-card-list__entity-company-vision').first().text().trim(),
+        companyAwards: $element.find('.company-search-card__awards, .company-awards-snippet, .job-card-container__company-awards, .job-card-list__entity-company-awards').first().text().trim(),
+        companyNews: $element.find('.company-search-card__news, .company-news-snippet, .job-card-container__company-news, .job-card-list__entity-company-news').first().text().trim(),
+        companyBlog: $element.find('.company-search-card__blog, .company-blog-snippet, .job-card-container__company-blog, .job-card-list__entity-company-blog').first().text().trim(),
+        companyCareers: $element.find('.company-search-card__careers, .company-careers-snippet, .job-card-container__company-careers, .job-card-list__entity-company-careers').first().text().trim(),
+        companyContact: $element.find('.company-search-card__contact, .company-contact-snippet, .job-card-container__company-contact, .job-card-list__entity-company-contact').first().text().trim(),
+        companyAddress: $element.find('.company-search-card__address, .company-address-snippet, .job-card-container__company-address, .job-card-list__entity-company-address').first().text().trim(),
+        companyPhone: $element.find('.company-search-card__phone, .company-phone-snippet, .job-card-container__company-phone, .job-card-list__entity-company-phone').first().text().trim(),
+        companyEmail: $element.find('.company-search-card__email, .company-email-snippet, .job-card-container__company-email, .job-card-list__entity-company-email').first().text().trim(),
+        companySocial: {
+          linkedin: $element.find('.company-search-card__linkedin, .company-linkedin-snippet, .job-card-container__company-linkedin, .job-card-list__entity-company-linkedin').first().attr('href') || '',
+          twitter: $element.find('.company-search-card__twitter, .company-twitter-snippet, .job-card-container__company-twitter, .job-card-list__entity-company-twitter').first().attr('href') || '',
+          facebook: $element.find('.company-search-card__facebook, .company-facebook-snippet, .job-card-container__company-facebook, .job-card-list__entity-company-facebook').first().attr('href') || '',
+          instagram: $element.find('.company-search-card__instagram, .company-instagram-snippet, .job-card-container__company-instagram, .job-card-list__entity-company-instagram').first().attr('href') || '',
+          youtube: $element.find('.company-search-card__youtube, .company-youtube-snippet, .job-card-container__company-youtube, .job-card-list__entity-company-youtube').first().attr('href') || '',
+          website: $element.find('.company-search-card__website, .company-website-snippet, .job-card-container__company-website, .job-card-list__entity-company-website').first().attr('href') || '',
+        }
+      };
+      
+      rawData.push(rawJobData);
+      
+      // Create job object with all available information
+      if (title && company) {
+        jobs.push({
+          title,
+          company,
+          location,
+          source: 'linkedin',
+          url: this.simplifyLinkedInJobUrl(url),
+          posted_at: new Date().toISOString(),
+          description,
+          employment_type: employmentType,
+          salary,
+          benefits,
+          company_size: companySize,
+          company_industry: companyIndustry,
+          company_domain: companyDomain
+        });
+      }
+    });
 
     console.log(`Found ${jobs.length} jobs`);
-    return jobs;
+    return { jobs, rawData };
   }
 
   private parseLinkedInRSS(xml: string): Job[] {
