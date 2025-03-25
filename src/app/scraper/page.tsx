@@ -63,20 +63,31 @@ export default function Home() {
     const geoId = selectedLocation ? selectedLocation.geoid : '103644278'; // Default to US if not found
     
     try {
+      console.log('Sending request with params:', { keywords, location, method, pageNum, geoId });
+      
       const response = await fetch(
         `/api/test?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&method=${method}&pageNum=${pageNum}&geoId=${geoId}`
       );
       
       const data = await response.json();
+      console.log('API Response:', data);
       
       if (data.success) {
-        setJobs(data.jobs);
+        if (data.jobs && data.jobs.length > 0) {
+          console.log('First job data:', data.jobs[0]);
+          setJobs(data.jobs);
+        } else {
+          setError('No jobs found in the response');
+          setJobs([]);
+        }
       } else {
         setError(data.error || 'Failed to fetch jobs');
+        setJobs([]);
       }
     } catch (err) {
+      console.error('Error in handleSubmit:', err);
       setError('An error occurred while fetching jobs');
-      console.error(err);
+      setJobs([]);
     } finally {
       setLoading(false);
     }
@@ -99,7 +110,16 @@ export default function Home() {
         url: job.url,
         posted_at: job.posted_at,
         source: job.source,
-        scrapped_at: new Date().toISOString()
+        scrapped_at: new Date().toISOString(),
+        description: job.description,
+        employment_type: job.employment_type,
+        salary: job.salary,
+        benefits: job.benefits,
+        company_size: job.company_size,
+        company_industry: job.company_industry,
+        company_domain: job.company_domain,
+        industry: job.industry,
+        is_remote: job.is_remote
       }));
 
       const { error } = await supabaseClient
@@ -290,17 +310,47 @@ export default function Home() {
                 <h3 className="text-lg font-bold">{job.title}</h3>
                 <p className="text-gray-700">{job.company}</p>
                 <p className="text-gray-600">{job.location}</p>
+                {job.employment_type && (
+                  <p className="text-sm text-gray-600">Employment Type: {job.employment_type}</p>
+                )}
+                {job.salary && (
+                  <p className="text-sm text-gray-600">Salary: {job.salary}</p>
+                )}
+                {job.company_industry && (
+                  <p className="text-sm text-gray-600">Industry: {job.company_industry}</p>
+                )}
+                {job.company_size && (
+                  <p className="text-sm text-gray-600">Company Size: {job.company_size}</p>
+                )}
+                {job.company_domain && (
+                  <p className="text-sm text-gray-600">Company Domain: {job.company_domain}</p>
+                )}
+                {job.benefits && (
+                  <p className="text-sm text-gray-600">Benefits: {job.benefits}</p>
+                )}
                 <p className="text-sm text-gray-500 mb-2">
                   Posted: {new Date(job.posted_at).toLocaleDateString()}
                 </p>
-                <a
-                  href={job.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-blue-500 hover:underline"
-                >
-                  View Job
-                </a>
+                <div className="flex gap-2">
+                  <a
+                    href={job.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-500 hover:underline"
+                  >
+                    View Job
+                  </a>
+                  {job.company_domain && (
+                    <a
+                      href={`https://${job.company_domain}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-green-500 hover:underline"
+                    >
+                      Company Website
+                    </a>
+                  )}
+                </div>
               </div>
             ))}
           </div>
