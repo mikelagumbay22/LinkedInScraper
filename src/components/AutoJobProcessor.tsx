@@ -34,6 +34,7 @@ export default function AutoJobProcessor({
   const [isWaitingForResults, setIsWaitingForResults] = useState(false);
   const [powerManager] = useState(() => new PowerManager());
   const [totalJobsSaved, setTotalJobsSaved] = useState(0);
+  const [hasProcessedCurrentJobs, setHasProcessedCurrentJobs] = useState(false);
 
   const processNextLocation = useCallback(async () => {
     try {
@@ -72,20 +73,26 @@ export default function AutoJobProcessor({
 
   // Watch for jobs changes
   useEffect(() => {
-    if (isWaitingForResults && jobs.length === 0) {
+    if (!isWaitingForResults) return;
+    if (hasProcessedCurrentJobs) return;
+
+    if (jobs.length === 0) {
       console.log(
         `No jobs found for ${currentLocation?.name}, moving to next location`
       );
+      setHasProcessedCurrentJobs(true);
       processNextLocation();
-    } else if (isWaitingForResults && jobs.length > 0) {
+    } else if (jobs.length > 0) {
       console.log(`Found ${jobs.length} jobs for ${currentLocation?.name}`);
       setTotalJobsSaved((prev) => prev + jobs.length);
-      setTimeout(() => {
+      setHasProcessedCurrentJobs(true);
+      const timer = setTimeout(() => {
         onSaveTrigger();
         processNextLocation();
       }, 5 * 60 * 1000);
+      return () => clearTimeout(timer);
     }
-  }, [jobs, isWaitingForResults, currentLocation?.name, onSaveTrigger, processNextLocation]);
+  }, [jobs, isWaitingForResults, currentLocation?.name, onSaveTrigger, processNextLocation, hasProcessedCurrentJobs]);
 
   const startAutoProcess = async () => {
     console.log("Starting auto process...");
@@ -98,6 +105,7 @@ export default function AutoJobProcessor({
     setIsRunning(true);
     onRunningStateChange(true);
     setError(null);
+    setHasProcessedCurrentJobs(false);
     processNextLocation();
   };
 

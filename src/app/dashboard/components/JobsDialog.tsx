@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/table"
 
 interface Job {
-  "job-title": string
+  title: string
   company: string
   location: string
   url: string
@@ -44,7 +44,7 @@ export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialog
       if (dateB !== dateA) return dateB - dateA
       
       // If dates are equal, sort by job title
-      return a["job-title"].localeCompare(b["job-title"])
+      return a.title.localeCompare(b.title)
     })
   }, [jobs])
 
@@ -75,7 +75,7 @@ export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialog
                   <TableCell>
                     {format(new Date(job.posted_at), 'MMM dd, yyyy')}
                   </TableCell>
-                  <TableCell>{job["job-title"]}</TableCell>
+                  <TableCell>{job.title}</TableCell>
                   <TableCell>{job.company}</TableCell>
                   <TableCell>{job.location}</TableCell>
                   <TableCell>

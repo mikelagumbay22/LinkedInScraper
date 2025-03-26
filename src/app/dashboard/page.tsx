@@ -26,11 +26,22 @@ import { format } from "date-fns"
 import { JobsDialog } from "./components/JobsDialog"
 import { ContactsDialog } from "./components/ContactsDialog"
 import { createClient } from '@supabase/supabase-js'
+import { Job } from "@/lib/types/job"
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
+
+interface Contact {
+  first_name: string
+  last_name: string
+  position: string
+  department: string
+  email_address: string
+  phone_number: string
+  linkedin_url: string
+}
 
 export default function DashboardPage() {
   const [data, setData] = useState<CompanyData[]>([])
@@ -41,8 +52,8 @@ export default function DashboardPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [dateFilter, setDateFilter] = useState<Date | undefined>()
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
-  const [jobs, setJobs] = useState<any[]>([])
-  const [contacts, setContacts] = useState<any[]>([])
+  const [jobs, setJobs] = useState<Job[]>([])
+  const [contacts, setContacts] = useState<Contact[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false)
 
@@ -82,7 +93,7 @@ export default function DashboardPage() {
     try {
       let query = supabase
         .from('jobs')
-        .select('"job-title", company, location, url, posted_at')
+        .select('title, company, location, url, posted_at')
         .eq('company', company)
 
       if (dateFilter) {
@@ -92,7 +103,7 @@ export default function DashboardPage() {
         const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
         
         query = query
-          .gte('posted_at', startOfDay) // Filter by posted_at
+          .gte('posted_at', startOfDay)
           .lte('posted_at', endOfDay)
       }
 
@@ -100,7 +111,16 @@ export default function DashboardPage() {
 
       if (error) throw error
       
-      setJobs(jobsData || [])
+      const mappedJobs = jobsData?.map(job => ({
+        title: job.title,
+        company: job.company,
+        location: job.location || 'Remote',
+        source: 'linkedin',
+        url: job.url,
+        posted_at: job.posted_at
+      })) || []
+      
+      setJobs(mappedJobs)
       setSelectedCompany(company)
       setIsDialogOpen(true)
     } catch (error) {

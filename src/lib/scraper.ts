@@ -362,7 +362,7 @@ export class JobScraper {
       const location = $element.find('location').text().trim();
       const url = $element.find('link').text().trim();
       
-      if (jobTitle && company) {
+      if (title && company) {
         jobs.push({
           title: jobTitle,
           company,

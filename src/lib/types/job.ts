@@ -1,9 +1,9 @@
 export interface Job {
   id?: string;
-  "job-title": string;
+  title: string;
   company: string;
-  location?: string;
-  source: string;
+  location: string;
+  source?: string;
   url: string;
   posted_at: string;
   created_at?: string;

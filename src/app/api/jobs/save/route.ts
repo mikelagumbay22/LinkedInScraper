@@ -52,10 +52,10 @@ export async function POST(request: Request) {
         const { error } = await supabase
           .from('jobs')
           .insert([{
-            title: job.title,
+            jobtitle: job.title,
             company: job.company,
             location: job.location,
-            url: simplifiedUrl, // Use the simplified URL
+            url: simplifiedUrl,
             source: job.source || 'linkedin',
             posted_at: job.posted_at || new Date().toISOString(),
             created_at: new Date().toISOString()

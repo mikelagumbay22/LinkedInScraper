@@ -19,13 +19,14 @@ export async function GET(request: Request) {
 
     const { data: jobs, error } = await supabase
       .from('jobs')
-      .select('title, company, location, posted_at, url, id')
+      .select('jobtitle, company, location, posted_at, url, id')
       .eq('company', company);
 
     if (error) throw error;
 
     const jobsWithUrls = jobs?.map(job => ({
       ...job,
+      title: job.jobtitle,
       url: job.url || `https://www.linkedin.com/jobs/view/${job.id}`
     }));
 

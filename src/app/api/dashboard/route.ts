@@ -25,7 +25,7 @@ export async function GET(request: Request) {
     // Fetch all jobs data with IDs
     let jobsQuery = supabase
       .from('jobs')
-      .select('id, company, posted_at') // Changed to posted_at
+      .select('id, company, posted_at, title') // Changed to posted_at
       .not('company', 'is', null)
       .order('company', { ascending: true })
 
