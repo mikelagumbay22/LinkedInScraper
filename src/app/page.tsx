@@ -13,6 +13,12 @@ export default function Page() {
         </h1>
         <div className="flex flex-col gap-4">
           <button
+            onClick={() => router.push("/dashboard")}
+            className="w-full bg-purple-600 text-white py-3 rounded-lg shadow-md hover:bg-purple-700 transition duration-300"
+          >
+            View Dashboard
+          </button>
+          <button
             onClick={() => router.push("/saved-jobs")}
             className="w-full bg-blue-600 text-white py-3 rounded-lg shadow-md hover:bg-blue-700 transition duration-300"
           >

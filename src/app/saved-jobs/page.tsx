@@ -6,7 +6,7 @@ import { columns } from "./components/columns";
 import { supabaseClient } from "@/lib/supabase";
 import Link from "next/link";
 import { CSVExportButton } from "./components/csv-export-button";
-import { MergeButton } from "./components/merge-button";
+
 
 // Define the Job type
 type Job = {
@@ -79,23 +79,27 @@ export default function SavedJobs() {
       <div className="w-full max-w-6xl">
         <div className="flex justify-between items-center mb-8">
           <h1 className="text-4xl font-bold">Saved Jobs</h1>
-          <div className="flex gap-4">
-            <MergeButton />
-            <CSVExportButton data={jobs} />
-            <button
-              onClick={handleDeleteSelected}
-              disabled={selectedRows.length === 0}
-              className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
-            >
-              Delete Selected ({selectedRows.length})
-            </button>
-            <Link
-              href="/"
-              className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded"
-            >
-              Back to Search
-            </Link>
+          <div className="flex flex-col gap-4">
+            <div >
+              <div className="flex gap-4">
+                <CSVExportButton data={jobs} />
+                <button
+                  onClick={handleDeleteSelected}
+                  disabled={selectedRows.length === 0}
+                  className="bg-red-500 hover:bg-red-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
+                >
+                  Delete Selected ({selectedRows.length})
+                </button>
+                <Link
+                  href="/"
+                  className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded"
+                >
+                  Back to Search
+                </Link>
+              </div>
+            </div>
           </div>
+          
         </div>
 
         {loading && <p className="text-center py-8">Loading saved jobs...</p>}

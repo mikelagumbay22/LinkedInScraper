@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabaseClient } from "@/lib/supabase";
 import { PowerManager } from "@/lib/utils/power";
 
@@ -35,24 +35,7 @@ export default function AutoJobProcessor({
   const [powerManager] = useState(() => new PowerManager());
   const [totalJobsSaved, setTotalJobsSaved] = useState(0);
 
-  // Watch for jobs changes
-  useEffect(() => {
-    if (isWaitingForResults && jobs.length === 0) {
-      console.log(
-        `No jobs found for ${currentLocation?.name}, moving to next location`
-      );
-      processNextLocation();
-    } else if (isWaitingForResults && jobs.length > 0) {
-      console.log(`Found ${jobs.length} jobs for ${currentLocation?.name}`);
-      setTotalJobsSaved((prev) => prev + jobs.length);
-      setTimeout(() => {
-        onSaveTrigger();
-        processNextLocation();
-      }, 5 * 60 * 1000);
-    }
-  }, [jobs, isWaitingForResults]);
-
-  const processNextLocation = async () => {
+  const processNextLocation = useCallback(async () => {
     try {
       const { data: locations, error: locationsError } = await supabaseClient
         .from("locations")
@@ -85,7 +68,24 @@ export default function AutoJobProcessor({
       setIsWaitingForResults(false);
       await powerManager.allowSleep();
     }
-  };
+  }, [processedLocations, powerManager, onTotalJobsSaved, onLocationChange, onSearchTrigger, totalJobsSaved]);
+
+  // Watch for jobs changes
+  useEffect(() => {
+    if (isWaitingForResults && jobs.length === 0) {
+      console.log(
+        `No jobs found for ${currentLocation?.name}, moving to next location`
+      );
+      processNextLocation();
+    } else if (isWaitingForResults && jobs.length > 0) {
+      console.log(`Found ${jobs.length} jobs for ${currentLocation?.name}`);
+      setTotalJobsSaved((prev) => prev + jobs.length);
+      setTimeout(() => {
+        onSaveTrigger();
+        processNextLocation();
+      }, 5 * 60 * 1000);
+    }
+  }, [jobs, isWaitingForResults, currentLocation?.name, onSaveTrigger, processNextLocation]);
 
   const startAutoProcess = async () => {
     console.log("Starting auto process...");

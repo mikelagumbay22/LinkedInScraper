@@ -1,14 +1,32 @@
-import { createRouteHandlerClient } from "@supabase/auth-helpers-nextjs";
+import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 import { Job } from "@/lib/types/job";
+import { CookieOptions } from "@supabase/ssr";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
 
 export async function POST() {
   try {
-    const supabase = createRouteHandlerClient({ cookies });
+    const cookieStore = cookies();
+    const supabase = createServerClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+      {
+        cookies: {
+          async get(name: string) {
+            return (await cookieStore).get(name)?.value;
+          },
+          async set(name: string, value: string, options: CookieOptions) {
+            (await cookieStore).set({ name, value, ...options });
+          },
+          async remove(name: string, options: CookieOptions) {
+            (await cookieStore).set({ name, value: "", ...options });
+          },
+        },
+      }
+    );
 
     // 1. Get all jobs
     const { data: jobs, error: jobsError } = await supabase
