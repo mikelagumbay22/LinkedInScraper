@@ -1,9 +1,9 @@
+// src/app/dashboard/components/DatePicker.tsx
 "use client"
 
 import * as React from "react"
 import { format } from "date-fns"
 import { CalendarIcon } from "lucide-react"
-
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
 import { Calendar } from "@/components/ui/calendar"
@@ -13,15 +13,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover"
 
-interface DatePickerSingleProps extends React.HTMLAttributes<HTMLDivElement> {
-  date: Date | undefined;
-  onDateChange: (date: Date | undefined) => void;
+interface DatePickerProps {
+  date?: Date
+  onDateChange: (date?: Date) => void
+  className?: string
 }
 
-export function DatePickerSingle({
-  date,
-  onDateChange,
-}: DatePickerSingleProps) {
+export function DatePicker({ date, onDateChange, className }: DatePickerProps) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -29,10 +27,11 @@ export function DatePickerSingle({
           variant={"outline"}
           className={cn(
             "w-[280px] justify-start text-left font-normal",
-            !date && "text-muted-foreground"
+            !date && "text-muted-foreground",
+            className
           )}
         >
-          <CalendarIcon />
+          <CalendarIcon className="mr-2 h-4 w-4" />
           {date ? format(date, "PPP") : <span>Pick a date</span>}
         </Button>
       </PopoverTrigger>
@@ -46,4 +45,4 @@ export function DatePickerSingle({
       </PopoverContent>
     </Popover>
   )
-} 
+}

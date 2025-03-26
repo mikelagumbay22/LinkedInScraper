@@ -1,11 +1,13 @@
-"use client";
+// src/app/dashboard/components/JobsDialog.tsx
+"use client"
 
+import * as React from "react"
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
-} from "@/components/ui/dialog";
+} from "@/components/ui/dialog"
 import {
   Table,
   TableBody,
@@ -13,179 +15,70 @@ import {
   TableHead,
   TableHeader,
   TableRow,
-} from "@/components/ui/table";
-import { useState } from "react";
+} from "@/components/ui/table"
 
 interface Job {
-  title: string;
-  company: string;
-  location: string;
-  posted_at: string;
-  url: string;
+  "job-title": string
+  company: string
+  location: string
+  url: string
 }
 
 interface JobsDialogProps {
-  isOpen: boolean;
-  onClose: () => void;
-  company: string;
-  jobs: Job[];
-  selectedDate: Date | null;
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  jobs: Job[]
+  companyName: string
 }
 
-type SortField = 'title' | 'location' | 'posted_at';
-type SortDirection = 'asc' | 'desc';
-
-export function JobsDialog({ isOpen, onClose, company, jobs, selectedDate }: JobsDialogProps) {
-  const [sortConfig, setSortConfig] = useState<{
-    primary: { field: SortField; direction: SortDirection };
-    secondary: { field: SortField; direction: SortDirection };
-  }>({
-    primary: { field: 'title', direction: 'asc' },
-    secondary: { field: 'location', direction: 'asc' }
-  });
-
-  // Filter jobs based on selected date
-  const filteredJobs = jobs.filter(job => {
-    if (!selectedDate) return true;
-    const jobDate = new Date(job.posted_at).toISOString().split('T')[0]; // Get only the date part
-    return jobDate === selectedDate.toISOString().split('T')[0]; // Compare with selected date
-  });
-
-  const handleSort = (field: SortField) => {
-    setSortConfig(current => {
-      if (current.primary.field === field) {
-        return {
-          ...current,
-          primary: {
-            ...current.primary,
-            direction: current.primary.direction === 'asc' ? 'desc' : 'asc'
-          }
-        };
-      } else {
-        return {
-          primary: { field, direction: 'asc' },
-          secondary: current.primary
-        };
-      }
-    });
-  };
-
-  const sortedJobs = [...filteredJobs].sort((a, b) => {
-    // Primary sort
-    const primaryCompare = (() => {
-      switch (sortConfig.primary.field) {
-        case 'title':
-          return sortConfig.primary.direction === 'asc'
-            ? a.title.localeCompare(b.title)
-            : b.title.localeCompare(a.title);
-        case 'location':
-          return sortConfig.primary.direction === 'asc'
-            ? a.location.localeCompare(b.location)
-            : b.location.localeCompare(a.location);
-        case 'posted_at':
-          return sortConfig.primary.direction === 'asc'
-            ? new Date(a.posted_at).getTime() - new Date(b.posted_at).getTime()
-            : new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime();
-        default:
-          return 0;
-      }
-    })();
-
-    // If primary sort is equal, apply secondary sort
-    if (primaryCompare === 0) {
-      switch (sortConfig.secondary.field) {
-        case 'title':
-          return sortConfig.secondary.direction === 'asc'
-            ? a.title.localeCompare(b.title)
-            : b.title.localeCompare(a.title);
-        case 'location':
-          return sortConfig.secondary.direction === 'asc'
-            ? a.location.localeCompare(b.location)
-            : b.location.localeCompare(a.location);
-        case 'posted_at':
-          return sortConfig.secondary.direction === 'asc'
-            ? new Date(a.posted_at).getTime() - new Date(b.posted_at).getTime()
-            : new Date(b.posted_at).getTime() - new Date(a.posted_at).getTime();
-        default:
-          return 0;
-      }
-    }
-
-    return primaryCompare;
-  });
-
-  const handleClick = (url: string, e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (!url) {
-      e.preventDefault();
-      console.error('No URL provided for job');
-      return;
-    }
-    console.log('Opening URL:', url); // Debug log
-  };
+export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialogProps) {
+  // Sort jobs by title (ascending) and then by location
+  const sortedJobs = React.useMemo(() => {
+    return [...jobs].sort((a, b) => {
+      // First sort by job title
+      const titleCompare = a["job-title"].localeCompare(b["job-title"])
+      if (titleCompare !== 0) return titleCompare
+      
+      // If titles are equal, sort by location
+      return a.location.localeCompare(b.location)
+    })
+  }, [jobs])
 
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-[800px] w-full">
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle className="text-xl font-bold">
-            {`Jobs at ${company}`}
-            {selectedDate && (
-              <span className="text-sm text-gray-500 ml-2">
-                ({selectedDate.toLocaleDateString()})
-              </span>
-            )}
+          <DialogTitle>
+            Job Openings for {companyName} ({jobs.length})
           </DialogTitle>
         </DialogHeader>
-        <div className="mt-4 max-h-[60vh] overflow-auto">
+        <div className="rounded-md border">
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('title')}
-                >
-                  Title {sortConfig.primary.field === 'title' && (sortConfig.primary.direction === 'asc' ? '↑' : '↓')}
-                  {sortConfig.secondary.field === 'title' && ' (2)'}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('location')}
-                >
-                  Location {sortConfig.primary.field === 'location' && (sortConfig.primary.direction === 'asc' ? '↑' : '↓')}
-                  {sortConfig.secondary.field === 'location'}
-                </TableHead>
-                <TableHead 
-                  className="cursor-pointer"
-                  onClick={() => handleSort('posted_at')}
-                >
-                  Posted Date {sortConfig.primary.field === 'posted_at' && (sortConfig.primary.direction === 'asc' ? '↑' : '↓')}
-                  {sortConfig.secondary.field === 'posted_at' && ' (2)'}
-                </TableHead>
-                <TableHead>LinkedIn</TableHead>
+                <TableHead className="w-[50px]">#</TableHead>
+                <TableHead>Job Title</TableHead>
+                <TableHead>Company</TableHead>
+                <TableHead>Location</TableHead>
+                <TableHead>URL</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {sortedJobs.map((job, index) => (
                 <TableRow key={index}>
-                  <TableCell className="break-words">{job.title}</TableCell>
-                  <TableCell className="break-words">{job.location}</TableCell>
+                  <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableCell>{job["job-title"]}</TableCell>
+                  <TableCell>{job.company}</TableCell>
+                  <TableCell>{job.location}</TableCell>
                   <TableCell>
-                    {new Date(job.posted_at).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>
-                    {job.url ? (
-                      <a 
-                        href={job.url} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="text-blue-500 hover:underline"
-                        onClick={(e) => handleClick(job.url, e)}
-                      >
-                        Click to View
-                      </a>
-                    ) : (
-                      <span className="text-gray-400">No URL available</span>
-                    )}
+                    <a 
+                      href={job.url} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="text-blue-600 hover:underline"
+                    >
+                      View Job
+                    </a>
                   </TableCell>
                 </TableRow>
               ))}
@@ -194,5 +87,5 @@ export function JobsDialog({ isOpen, onClose, company, jobs, selectedDate }: Job
         </div>
       </DialogContent>
     </Dialog>
-  );
-} 
+  )
+}

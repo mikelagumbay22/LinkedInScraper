@@ -40,9 +40,23 @@ export const columns: ColumnDef<CompanyData>[] = [
         </Button>
       )
     },
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const count = parseInt(row.getValue("jobOpenings"))
-      return <div className="text-center">{count}</div>
+      const company = row.getValue("company") as string
+      
+      return (
+        <Button 
+          variant="link" 
+          className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+          onClick={() => {
+            if (table.options.meta?.onJobOpeningsClick) {
+              table.options.meta.onJobOpeningsClick(company)
+            }
+          }}
+        >
+          {count}
+        </Button>
+      )
     },
   },
   {

@@ -1,6 +1,6 @@
 export interface Job {
   id?: string;
-  title: string;
+  "job-title": string;
   company: string;
   location?: string;
   source: string;
