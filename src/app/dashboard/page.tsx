@@ -24,6 +24,7 @@ import { columns, CompanyData } from "./components/DataTable"
 import { DatePicker } from "./components/DatePicker"
 import { format } from "date-fns"
 import { JobsDialog } from "./components/JobsDialog"
+import { ContactsDialog } from "./components/ContactsDialog"
 import { createClient } from '@supabase/supabase-js'
 
 const supabase = createClient(
@@ -42,35 +43,50 @@ export default function DashboardPage() {
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [jobs, setJobs] = useState<any[]>([])
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const [contacts, setContacts] = useState<any[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
+  const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false)
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        let url = '/api/dashboard'
-        if (dateFilter) {
-          const dateString = format(dateFilter, 'yyyy-MM-dd')
-          url += `?date=${dateString}`
-        }
-        
-        const response = await fetch(url)
-        const result = await response.json()
-        setData(result)
-      } catch (error) {
-        console.error('Error fetching data:', error)
-      } finally {
-        setLoading(false)
+// Update your page.tsx useEffect hook
+useEffect(() => {
+  const fetchData = async () => {
+    try {
+      setLoading(true)
+      let url = '/api/dashboard'
+      if (dateFilter) {
+        const dateString = format(dateFilter, 'yyyy-MM-dd')
+        url += `?date=${dateString}`
       }
+      
+      const response = await fetch(url)
+      if (!response.ok) {
+        const errorData = await response.json()
+        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+      }
+      const result = await response.json()
+      
+      if (result.error) {
+        throw new Error(result.error)
+      }
+      
+      setData(result || [])
+    } catch (error) {
+      console.error('Error fetching data:', error)
+      // You might want to set some error state here to show to the user
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchData()
-  }, [dateFilter])
+  fetchData()
+}, [dateFilter])
 
   const fetchJobsForCompany = async (company: string) => {
     try {
       let query = supabase
         .from('jobs')
-        .select('job-title, company, location, url, created_at')
+        .select('"job-title", company, location, url')
         .eq('company', company)
 
       if (dateFilter) {
@@ -96,23 +112,53 @@ export default function DashboardPage() {
     }
   }
 
-  // In your page.tsx, ensure the table options include:
-const table = useReactTable({
-  data,
-  columns,
-  onSortingChange: setSorting,
-  onColumnFiltersChange: setColumnFilters,
-  getCoreRowModel: getCoreRowModel(),
-  getSortedRowModel: getSortedRowModel(),
-  getFilteredRowModel: getFilteredRowModel(),
-  state: {
-    sorting,
-    columnFilters,
-  },
-  meta: {
-    onJobOpeningsClick: fetchJobsForCompany // Make sure this is set
+  const fetchContactsForCompany = async (company: string) => {
+    try {
+      let query = supabase
+        .from('contact')
+        .select('first_name, last_name, position, department, email_address, phone_number, linkedin_url')
+        .eq('company', company)
+
+      if (dateFilter) {
+        const dateString = format(dateFilter, 'yyyy-MM-dd')
+        const date = new Date(dateString)
+        const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString()
+        const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
+        
+        query = query
+          .gte('created_at', startOfDay)
+          .lte('created_at', endOfDay)
+      }
+
+      const { data: contactsData, error } = await query
+
+      if (error) throw error
+      
+      setContacts(contactsData || [])
+      setSelectedCompany(company)
+      setIsContactsDialogOpen(true)
+    } catch (error) {
+      console.error('Error fetching contacts:', error)
+    }
   }
-})
+
+  const table = useReactTable({
+    data,
+    columns,
+    onSortingChange: setSorting,
+    onColumnFiltersChange: setColumnFilters,
+    getCoreRowModel: getCoreRowModel(),
+    getSortedRowModel: getSortedRowModel(),
+    getFilteredRowModel: getFilteredRowModel(),
+    state: {
+      sorting,
+      columnFilters,
+    },
+    meta: {
+      onJobOpeningsClick: fetchJobsForCompany,
+      onContactsClick: fetchContactsForCompany
+    }
+  })
 
   if (loading) {
     return <div className="flex justify-center items-center h-screen">Loading...</div>
@@ -189,6 +235,13 @@ const table = useReactTable({
         open={isDialogOpen}
         onOpenChange={setIsDialogOpen}
         jobs={jobs}
+        companyName={selectedCompany || ''}
+      />
+
+      <ContactsDialog
+        open={isContactsDialogOpen}
+        onOpenChange={setIsContactsDialogOpen}
+        contacts={contacts}
         companyName={selectedCompany || ''}
       />
     </div>

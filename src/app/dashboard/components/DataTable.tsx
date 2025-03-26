@@ -11,6 +11,12 @@ export type CompanyData = {
   contacts: number
 }
 
+// Define the meta type
+type TableMeta = {
+  onJobOpeningsClick: (company: string) => void
+  onContactsClick: (company: string) => void
+}
+
 export const columns: ColumnDef<CompanyData>[] = [
   {
     accessorKey: "company",
@@ -49,9 +55,8 @@ export const columns: ColumnDef<CompanyData>[] = [
           variant="link" 
           className="text-blue-600 hover:text-blue-800 p-0 h-auto"
           onClick={() => {
-            if (table.options.meta?.onJobOpeningsClick) {
-              table.options.meta.onJobOpeningsClick(company)
-            }
+            const meta = table.options.meta as TableMeta | undefined
+            meta?.onJobOpeningsClick(company)
           }}
         >
           {count}
@@ -72,9 +77,22 @@ export const columns: ColumnDef<CompanyData>[] = [
         </Button>
       )
     },
-    cell: ({ row }) => {
+    cell: ({ row, table }) => {
       const count = parseInt(row.getValue("contacts"))
-      return <div className="text-center">{count}</div>
+      const company = row.getValue("company") as string
+      
+      return (
+        <Button 
+          variant="link" 
+          className="text-blue-600 hover:text-blue-800 p-0 h-auto"
+          onClick={() => {
+            const meta = table.options.meta as TableMeta | undefined
+            meta?.onContactsClick(company)
+          }}
+        >
+          {count}
+        </Button>
+      )
     },
   },
 ]
