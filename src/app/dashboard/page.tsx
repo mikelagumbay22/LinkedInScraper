@@ -41,52 +41,48 @@ export default function DashboardPage() {
   const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([])
   const [dateFilter, setDateFilter] = useState<Date | undefined>()
   const [selectedCompany, setSelectedCompany] = useState<string | null>(null)
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [jobs, setJobs] = useState<any[]>([])
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const [contacts, setContacts] = useState<any[]>([])
   const [isDialogOpen, setIsDialogOpen] = useState(false)
   const [isContactsDialogOpen, setIsContactsDialogOpen] = useState(false)
 
-// Update your page.tsx useEffect hook
-useEffect(() => {
-  const fetchData = async () => {
-    try {
-      setLoading(true)
-      let url = '/api/dashboard'
-      if (dateFilter) {
-        const dateString = format(dateFilter, 'yyyy-MM-dd')
-        url += `?date=${dateString}`
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setLoading(true)
+        let url = '/api/dashboard'
+        if (dateFilter) {
+          const dateString = format(dateFilter, 'yyyy-MM-dd')
+          url += `?date=${dateString}`
+        }
+        
+        const response = await fetch(url)
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
+        }
+        const result = await response.json()
+        
+        if (result.error) {
+          throw new Error(result.error)
+        }
+        
+        setData(result || [])
+      } catch (error) {
+        console.error('Error fetching data:', error)
+      } finally {
+        setLoading(false)
       }
-      
-      const response = await fetch(url)
-      if (!response.ok) {
-        const errorData = await response.json()
-        throw new Error(errorData.error || `HTTP error! status: ${response.status}`)
-      }
-      const result = await response.json()
-      
-      if (result.error) {
-        throw new Error(result.error)
-      }
-      
-      setData(result || [])
-    } catch (error) {
-      console.error('Error fetching data:', error)
-      // You might want to set some error state here to show to the user
-    } finally {
-      setLoading(false)
     }
-  }
 
-  fetchData()
-}, [dateFilter])
+    fetchData()
+  }, [dateFilter])
 
   const fetchJobsForCompany = async (company: string) => {
     try {
       let query = supabase
         .from('jobs')
-        .select('"job-title", company, location, url')
+        .select('"job-title", company, location, url, posted_at')
         .eq('company', company)
 
       if (dateFilter) {
@@ -96,8 +92,8 @@ useEffect(() => {
         const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
         
         query = query
-          .gte('created_at', startOfDay)
-          .lte('created_at', endOfDay)
+          .gte('posted_at', startOfDay) // Filter by posted_at
+          .lte('posted_at', endOfDay)
       }
 
       const { data: jobsData, error } = await query

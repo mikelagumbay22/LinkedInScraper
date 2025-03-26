@@ -2,6 +2,7 @@
 "use client"
 
 import * as React from "react"
+import { format } from 'date-fns'
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ interface Job {
   company: string
   location: string
   url: string
+  posted_at: string
 }
 
 interface JobsDialogProps {
@@ -32,21 +34,23 @@ interface JobsDialogProps {
 }
 
 export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialogProps) {
-  // Sort jobs by title (ascending) and then by location
+  // Sort jobs by posted date (newest first) then by title
   const sortedJobs = React.useMemo(() => {
     return [...jobs].sort((a, b) => {
-      // First sort by job title
-      const titleCompare = a["job-title"].localeCompare(b["job-title"])
-      if (titleCompare !== 0) return titleCompare
+      const dateA = new Date(a.posted_at).getTime()
+      const dateB = new Date(b.posted_at).getTime()
       
-      // If titles are equal, sort by location
-      return a.location.localeCompare(b.location)
+      // First sort by posted date (newest first)
+      if (dateB !== dateA) return dateB - dateA
+      
+      // If dates are equal, sort by job title
+      return a["job-title"].localeCompare(b["job-title"])
     })
   }, [jobs])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+      <DialogContent className="max-w-6xl max-h-[80vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             Job Openings for {companyName} ({jobs.length})
@@ -57,6 +61,7 @@ export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialog
             <TableHeader>
               <TableRow>
                 <TableHead className="w-[50px]">#</TableHead>
+                <TableHead className="min-w-[120px]">Posted Date</TableHead>
                 <TableHead>Job Title</TableHead>
                 <TableHead>Company</TableHead>
                 <TableHead>Location</TableHead>
@@ -67,6 +72,9 @@ export function JobsDialog({ open, onOpenChange, jobs, companyName }: JobsDialog
               {sortedJobs.map((job, index) => (
                 <TableRow key={index}>
                   <TableCell className="font-medium">{index + 1}</TableCell>
+                  <TableCell>
+                    {format(new Date(job.posted_at), 'MMM dd, yyyy')}
+                  </TableCell>
                   <TableCell>{job["job-title"]}</TableCell>
                   <TableCell>{job.company}</TableCell>
                   <TableCell>{job.location}</TableCell>

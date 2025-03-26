@@ -11,7 +11,6 @@ export type CompanyData = {
   contacts: number
 }
 
-// Define the meta type
 type TableMeta = {
   onJobOpeningsClick: (company: string) => void
   onContactsClick: (company: string) => void

@@ -25,19 +25,22 @@ export async function GET(request: Request) {
     // Fetch all jobs data with IDs
     let jobsQuery = supabase
       .from('jobs')
-      .select('id, company, created_at')
+      .select('id, company, posted_at') // Changed to posted_at
       .not('company', 'is', null)
       .order('company', { ascending: true })
 
     if (dateFilter) {
       try {
         const date = parseISO(dateFilter)
-        const startOfDay = new Date(date.setHours(0, 0, 0, 0)).toISOString()
-        const endOfDay = new Date(date.setHours(23, 59, 59, 999)).toISOString()
+        const startOfDay = new Date(date)
+        startOfDay.setHours(0, 0, 0, 0)
+        
+        const endOfDay = new Date(date)
+        endOfDay.setHours(23, 59, 59, 999)
         
         jobsQuery = jobsQuery
-          .gte('created_at', startOfDay)
-          .lte('created_at', endOfDay)
+          .gte('posted_at', startOfDay.toISOString()) // Filter by posted_at
+          .lte('posted_at', endOfDay.toISOString())
       } catch (dateError) {
         console.error('Invalid date filter:', dateError)
         return NextResponse.json(
@@ -70,7 +73,7 @@ export async function GET(request: Request) {
       return acc
     }, {} as Record<string, Set<string>>)
 
-    // Fetch contact counts with IDs - Updated to use 'company' instead of 'organization'
+    // Fetch contact counts with IDs
     let contactsQuery = supabase
       .from('contact')
       .select('id, company')
@@ -104,7 +107,7 @@ export async function GET(request: Request) {
       )
     }
 
-    // Count contacts by company - Updated to use 'company' instead of 'organization'
+    // Count contacts by company
     const contactsByCompany = (contactsData || []).reduce((acc, { company, id }) => {
       if (!company) return acc
       if (!acc[company]) acc[company] = new Set()
