@@ -24,39 +24,44 @@ export default function SavedJobs() {
   const [error, setError] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
   const [totalCount, setTotalCount] = useState(0);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [pageSize] = useState(1000);
-
-  const fetchJobs = async (page: number) => {
-    try {
-      setLoading(true);
-      // Get total count
-      const { count } = await supabaseClient
-        .from("jobs")
-        .select("*", { count: "exact", head: true });
-
-      setTotalCount(count || 0);
-
-      // Get paginated data
-      const { data, error } = await supabaseClient
-        .from("jobs")
-        .select("*")
-        .order("posted_at", { ascending: false })
-        .range((page - 1) * pageSize, page * pageSize - 1);
-
-      if (error) throw error;
-      setJobs(data || []);
-      setCurrentPage(page);
-    } catch (err) {
-      console.error("Error fetching jobs:", err);
-      setError("Failed to load saved jobs");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   useEffect(() => {
-    fetchJobs(1);
+    const fetchJobs = async () => {
+      try {
+        setLoading(true);
+        // Get total count
+        const { count } = await supabaseClient
+          .from("jobs")
+          .select("*", { count: "exact", head: true });
+        
+        setTotalCount(count || 0);
+        
+        // Fetch all jobs in chunks of 1000
+        const chunkSize = 1000;
+        const totalChunks = Math.ceil((count || 0) / chunkSize);
+        let allJobs: Job[] = [];
+
+        for (let i = 0; i < totalChunks; i++) {
+          const { data, error } = await supabaseClient
+            .from("jobs")
+            .select("*")
+            .order('posted_at', { ascending: false })
+            .range(i * chunkSize, (i + 1) * chunkSize - 1);
+
+          if (error) throw error;
+          if (data) allJobs = [...allJobs, ...data];
+        }
+        
+        setJobs(allJobs);
+      } catch (err) {
+        console.error("Error fetching jobs:", err);
+        setError("Failed to load saved jobs");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchJobs();
   }, []);
 
   const handleDelete = async (id: string) => {
@@ -64,7 +69,6 @@ export default function SavedJobs() {
       const { error } = await supabaseClient.from("jobs").delete().eq("id", id);
       if (error) throw error;
       setJobs((prevJobs) => prevJobs.filter((job) => job.id !== id));
-      setTotalCount((prev) => prev - 1);
     } catch (err) {
       console.error("Error deleting job:", err);
       alert("Failed to delete job");
@@ -85,7 +89,6 @@ export default function SavedJobs() {
       setJobs((prevJobs) =>
         prevJobs.filter((job) => !selectedRows.includes(job.id))
       );
-      setTotalCount((prev) => prev - selectedRows.length);
       setSelectedRows([]);
     } catch (err) {
       console.error("Error deleting selected jobs:", err);
@@ -135,26 +138,7 @@ export default function SavedJobs() {
 
         {jobs.length > 0 && (
           <>
-            <p className="mb-4">
-              Showing {jobs.length} of {totalCount} saved jobs (Page{" "}
-              {currentPage} of {Math.ceil(totalCount / pageSize)})
-            </p>
-            <div className="flex justify-center gap-2 mt-4">
-              <button
-                onClick={() => fetchJobs(currentPage - 1)}
-                disabled={currentPage === 1}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
-              >
-                Previous Page
-              </button>
-              <button
-                onClick={() => fetchJobs(currentPage + 1)}
-                disabled={currentPage >= Math.ceil(totalCount / pageSize)}
-                className="bg-blue-500 hover:bg-blue-600 text-white font-medium py-2 px-4 rounded disabled:opacity-50"
-              >
-                Next Page
-              </button>
-            </div>
+            <p className="mb-4">Showing {jobs.length} of {totalCount} saved jobs</p>
             <div className="container mx-auto py-10">
               <DataTable
                 columns={columns(handleDelete)}
