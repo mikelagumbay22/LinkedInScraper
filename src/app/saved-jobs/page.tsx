@@ -23,13 +23,25 @@ export default function SavedJobs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
+  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        const { data } = await supabaseClient.from("jobs").select("*");
-        setJobs(data || []); // Handle null case by providing empty array default
+        // Get total count
+        const { count } = await supabaseClient
+          .from("jobs")
+          .select("*", { count: "exact", head: true });
+        
+        // Get jobs with pagination
+        const { data } = await supabaseClient
+          .from("jobs")
+          .select("*")
+          .range(0, 9999); // Get first 10000 jobs
+        
+        setJobs(data || []);
+        setTotalCount(count || 0);
       } catch (err) {
         console.error("Error fetching jobs:", err);
         setError("Failed to load saved jobs");
@@ -115,7 +127,7 @@ export default function SavedJobs() {
 
         {jobs.length > 0 && (
           <>
-            <p className="mb-4">Found {jobs.length} saved jobs</p>
+            <p className="mb-4">Showing {jobs.length} of {totalCount} saved jobs</p>
             <div className="container mx-auto py-10">
               <DataTable
                 columns={columns(handleDelete)}
