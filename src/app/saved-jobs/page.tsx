@@ -34,14 +34,25 @@ export default function SavedJobs() {
           .from("jobs")
           .select("*", { count: "exact", head: true });
         
-        // Get jobs with pagination
-        const { data } = await supabaseClient
-          .from("jobs")
-          .select("*")
-          .range(0, 9999); // Get first 10000 jobs
-        
-        setJobs(data || []);
         setTotalCount(count || 0);
+        
+        // Fetch all jobs in chunks of 1000
+        const chunkSize = 1000;
+        const totalChunks = Math.ceil((count || 0) / chunkSize);
+        let allJobs: Job[] = [];
+
+        for (let i = 0; i < totalChunks; i++) {
+          const { data, error } = await supabaseClient
+            .from("jobs")
+            .select("*")
+            .order('posted_at', { ascending: false })
+            .range(i * chunkSize, (i + 1) * chunkSize - 1);
+
+          if (error) throw error;
+          if (data) allJobs = [...allJobs, ...data];
+        }
+        
+        setJobs(allJobs);
       } catch (err) {
         console.error("Error fetching jobs:", err);
         setError("Failed to load saved jobs");
