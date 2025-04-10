@@ -33,9 +33,9 @@ export default function SavedJobs() {
         const { count } = await supabaseClient
           .from("jobs")
           .select("*", { count: "exact", head: true });
-        
+
         setTotalCount(count || 0);
-        
+
         // Fetch all jobs in chunks of 1000
         const chunkSize = 1000;
         const totalChunks = Math.ceil((count || 0) / chunkSize);
@@ -45,13 +45,13 @@ export default function SavedJobs() {
           const { data, error } = await supabaseClient
             .from("jobs")
             .select("*")
-            .order('posted_at', { ascending: false })
+            .order("posted_at", { ascending: false })
             .range(i * chunkSize, (i + 1) * chunkSize - 1);
 
           if (error) throw error;
           if (data) allJobs = [...allJobs, ...data];
         }
-        
+
         setJobs(allJobs);
       } catch (err) {
         console.error("Error fetching jobs:", err);
@@ -138,7 +138,9 @@ export default function SavedJobs() {
 
         {jobs.length > 0 && (
           <>
-            <p className="mb-4">Showing {jobs.length} of {totalCount} saved jobs</p>
+            <p className="mb-4">
+              Showing {jobs.length} of {totalCount} saved jobs
+            </p>
             <div className="container mx-auto py-10">
               <DataTable
                 columns={columns(handleDelete)}

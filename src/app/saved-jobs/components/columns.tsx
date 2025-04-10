@@ -22,7 +22,6 @@ const formatDate = (dateString: string | null | undefined) => {
   return new Intl.DateTimeFormat("en-US", options).format(date);
 };
 
-
 export const columns = (
   handleDelete: (id: string) => void
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
