@@ -23,21 +23,17 @@ export default function SavedJobs() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [selectedRows, setSelectedRows] = useState<string[]>([]);
-  const [totalCount, setTotalCount] = useState(0);
 
   useEffect(() => {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        // Get total count
+        // Fetch all jobs in chunks of 1000
+        const chunkSize = 1000;
         const { count } = await supabaseClient
           .from("jobs")
           .select("*", { count: "exact", head: true });
 
-        setTotalCount(count || 0);
-
-        // Fetch all jobs in chunks of 1000
-        const chunkSize = 1000;
         const totalChunks = Math.ceil((count || 0) / chunkSize);
         let allJobs: Job[] = [];
 
@@ -138,9 +134,6 @@ export default function SavedJobs() {
 
         {jobs.length > 0 && (
           <>
-            <p className="mb-4">
-              Showing {jobs.length} of {totalCount} saved jobs
-            </p>
             <div className="container mx-auto py-10">
               <DataTable
                 columns={getColumns(handleDelete)}
