@@ -29,25 +29,25 @@ export default function SavedJobs() {
       try {
         setLoading(true);
         console.log("Fetching jobs from Supabase...");
-        
+
         // First check if we can connect to Supabase
         const { error: testError } = await supabaseClient
-          .from('jobs')
-          .select('id')
+          .from("jobs")
+          .select("id")
           .limit(1);
-        
+
         if (testError) {
           console.error("Supabase connection error:", testError);
           throw testError;
         }
-        
+
         console.log("Supabase connection successful");
 
         // Fetch all jobs at once
         const { data, error } = await supabaseClient
-          .from('jobs')
-          .select('*', { count: 'exact' })
-          .order('posted_at', { ascending: false });
+          .from("jobs")
+          .select("*", { count: "exact" })
+          .order("posted_at", { ascending: false });
 
         if (error) {
           console.error("Error fetching jobs:", error);
@@ -58,7 +58,9 @@ export default function SavedJobs() {
         setJobs(data || []);
       } catch (err) {
         console.error("Error in fetchJobs:", err);
-        setError(err instanceof Error ? err.message : "Failed to load saved jobs");
+        setError(
+          err instanceof Error ? err.message : "Failed to load saved jobs"
+        );
       } finally {
         setLoading(false);
       }

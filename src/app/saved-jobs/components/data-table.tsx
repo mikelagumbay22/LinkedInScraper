@@ -36,8 +36,11 @@ export function DataTable<TData, TValue>({
 }: DataTableProps<TData, TValue>) {
   console.log("DataTable props:", { columns, data, onSelectionChange });
   const [sorting, setSorting] = React.useState<SortingState>([]);
-  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
+  const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>(
+    []
+  );
+  const [columnVisibility, setColumnVisibility] =
+    React.useState<VisibilityState>({});
   const [rowSelection, setRowSelection] = React.useState({});
 
   const table = useReactTable({
@@ -51,7 +54,8 @@ export function DataTable<TData, TValue>({
     getFilteredRowModel: getFilteredRowModel(),
     onColumnVisibilityChange: setColumnVisibility,
     onRowSelectionChange: (updater) => {
-      const newState = typeof updater === "function" ? updater(rowSelection) : updater;
+      const newState =
+        typeof updater === "function" ? updater(rowSelection) : updater;
       setRowSelection(newState);
       if (onSelectionChange) {
         const selectedIds = Object.keys(newState)
@@ -76,7 +80,7 @@ export function DataTable<TData, TValue>({
   console.log("Table state:", {
     rows: table.getRowModel().rows.length,
     pageIndex: table.getState().pagination.pageIndex,
-    pageSize: table.getState().pagination.pageSize
+    pageSize: table.getState().pagination.pageSize,
   });
 
   return (
@@ -100,7 +104,9 @@ export function DataTable<TData, TValue>({
         />
         <Input
           placeholder="Filter locations..."
-          value={(table.getColumn("location")?.getFilterValue() as string) ?? ""}
+          value={
+            (table.getColumn("location")?.getFilterValue() as string) ?? ""
+          }
           onChange={(event) =>
             table.getColumn("location")?.setFilterValue(event.target.value)
           }
@@ -162,7 +168,10 @@ export function DataTable<TData, TValue>({
                 >
                   {row.getVisibleCells().map((cell) => (
                     <td key={cell.id} className="px-4 py-2">
-                      {flexRender(cell.column.columnDef.cell, cell.getContext())}
+                      {flexRender(
+                        cell.column.columnDef.cell,
+                        cell.getContext()
+                      )}
                     </td>
                   ))}
                 </tr>
@@ -184,9 +193,17 @@ export function DataTable<TData, TValue>({
             {table.getFilteredRowModel().rows.length} row(s) selected.
           </div>
           <div>
-            Showing {table.getState().pagination.pageIndex * table.getState().pagination.pageSize + 1} to{" "}
-            {Math.min((table.getState().pagination.pageIndex + 1) * table.getState().pagination.pageSize, data.length)} of{" "}
-            {data.length} entries
+            Showing{" "}
+            {table.getState().pagination.pageIndex *
+              table.getState().pagination.pageSize +
+              1}{" "}
+            to{" "}
+            {Math.min(
+              (table.getState().pagination.pageIndex + 1) *
+                table.getState().pagination.pageSize,
+              data.length
+            )}{" "}
+            of {data.length} entries
           </div>
         </div>
         <div className="flex items-center space-x-2">
@@ -215,12 +232,12 @@ export function DataTable<TData, TValue>({
           </span>
           <select
             value={table.getState().pagination.pageSize}
-            onChange={e => {
-              table.setPageSize(Number(e.target.value))
+            onChange={(e) => {
+              table.setPageSize(Number(e.target.value));
             }}
             className="h-8 w-[70px] rounded-md border border-input bg-background"
           >
-            {[50, 100, 200, 500].map(pageSize => (
+            {[50, 100, 200, 500].map((pageSize) => (
               <option key={pageSize} value={pageSize}>
                 {pageSize}
               </option>
