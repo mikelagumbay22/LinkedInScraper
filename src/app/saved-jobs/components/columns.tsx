@@ -5,6 +5,16 @@ import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ArrowUpDown } from "lucide-react";
 
+type Job = {
+  id: string;
+  title: string;
+  company: string;
+  location: string;
+  url: string;
+  posted_at: string;
+  scraped_at: string;
+};
+
 // Function to format date
 const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return "N/A";
@@ -22,10 +32,14 @@ const formatDate = (dateString: string | null | undefined) => {
   return new Intl.DateTimeFormat("en-US", options).format(date);
 };
 
-export const columns = (
-  handleDelete: (id: string) => void
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-): ColumnDef<any>[] => [
+export const getColumns = (handleDelete: (id: string) => void): ColumnDef<Job>[] => [
+  {
+    id: "rowNumber",
+    header: "#",
+    cell: ({ row }) => row.index + 1,
+    enableSorting: false,
+    enableHiding: false,
+  },
   {
     id: "select",
     header: ({ table }) => (
@@ -34,14 +48,14 @@ export const columns = (
           table.getIsAllPageRowsSelected() ||
           (table.getIsSomePageRowsSelected() && "indeterminate")
         }
-        onCheckedChange={(value) => table.toggleAllPageRowsSelected(!!value)}
+        onCheckedChange={(value: boolean) => table.toggleAllPageRowsSelected(!!value)}
         aria-label="Select all"
       />
     ),
     cell: ({ row }) => (
       <Checkbox
         checked={row.getIsSelected()}
-        onCheckedChange={(value) => row.toggleSelected(!!value)}
+        onCheckedChange={(value: boolean) => row.toggleSelected(!!value)}
         aria-label="Select row"
       />
     ),

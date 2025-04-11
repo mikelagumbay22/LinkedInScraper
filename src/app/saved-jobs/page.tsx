@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { DataTable } from "./components/data-table";
-import { columns } from "./components/columns";
+import { getColumns } from "./components/columns";
 import { supabaseClient } from "@/lib/supabase";
 import Link from "next/link";
 import { CSVExportButton } from "./components/csv-export-button";
@@ -143,7 +143,7 @@ export default function SavedJobs() {
             </p>
             <div className="container mx-auto py-10">
               <DataTable
-                columns={columns(handleDelete)}
+                columns={getColumns(handleDelete)}
                 data={jobs}
                 onSelectionChange={setSelectedRows}
               />

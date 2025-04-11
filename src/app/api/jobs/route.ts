@@ -1,10 +1,12 @@
 import { NextResponse } from 'next/server';
 import { supabaseClient } from '@/lib/supabase';
 
+export const maxDuration = 30; // Set max duration to 30 seconds
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const page = parseInt(searchParams.get('page') || '1');
-  const pageSize = parseInt(searchParams.get('pageSize') || '1000');
+  const pageSize = parseInt(searchParams.get('pageSize') || '500'); // Reduced from 1000 to 500
 
   try {
     // Get total count
