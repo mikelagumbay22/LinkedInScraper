@@ -109,7 +109,7 @@ export const getColumns = (handleDelete: (id: string) => void): ColumnDef<Job>[]
     header: "URL",
   },
   {
-    accessorKey: "scrapped_at",
+    accessorKey: "scraped_at",
     header: ({ column }) => {
       return (
         <Button
@@ -121,7 +121,7 @@ export const getColumns = (handleDelete: (id: string) => void): ColumnDef<Job>[]
         </Button>
       );
     },
-    cell: ({ row }) => formatDate(row.getValue("scrapped_at")),
+    cell: ({ row }) => formatDate(row.getValue("scraped_at")),
   },
   {
     id: "actions",

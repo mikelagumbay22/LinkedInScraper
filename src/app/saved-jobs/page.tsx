@@ -28,30 +28,37 @@ export default function SavedJobs() {
     const fetchJobs = async () => {
       try {
         setLoading(true);
-        // Fetch all jobs in chunks of 1000
-        const chunkSize = 1000;
-        const { count } = await supabaseClient
-          .from("jobs")
-          .select("*", { count: "exact", head: true });
+        console.log("Fetching jobs from Supabase...");
+        
+        // First check if we can connect to Supabase
+        const { error: testError } = await supabaseClient
+          .from('jobs')
+          .select('id')
+          .limit(1);
+        
+        if (testError) {
+          console.error("Supabase connection error:", testError);
+          throw testError;
+        }
+        
+        console.log("Supabase connection successful");
 
-        const totalChunks = Math.ceil((count || 0) / chunkSize);
-        let allJobs: Job[] = [];
+        // Fetch all jobs at once
+        const { data, error } = await supabaseClient
+          .from('jobs')
+          .select('*', { count: 'exact' })
+          .order('posted_at', { ascending: false });
 
-        for (let i = 0; i < totalChunks; i++) {
-          const { data, error } = await supabaseClient
-            .from("jobs")
-            .select("*")
-            .order("posted_at", { ascending: false })
-            .range(i * chunkSize, (i + 1) * chunkSize - 1);
-
-          if (error) throw error;
-          if (data) allJobs = [...allJobs, ...data];
+        if (error) {
+          console.error("Error fetching jobs:", error);
+          throw error;
         }
 
-        setJobs(allJobs);
+        console.log("Jobs fetched successfully:", data?.length || 0);
+        setJobs(data || []);
       } catch (err) {
-        console.error("Error fetching jobs:", err);
-        setError("Failed to load saved jobs");
+        console.error("Error in fetchJobs:", err);
+        setError(err instanceof Error ? err.message : "Failed to load saved jobs");
       } finally {
         setLoading(false);
       }

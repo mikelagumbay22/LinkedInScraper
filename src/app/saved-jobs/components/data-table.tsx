@@ -34,6 +34,7 @@ export function DataTable<TData, TValue>({
   data,
   onSelectionChange,
 }: DataTableProps<TData, TValue>) {
+  console.log("DataTable props:", { columns, data, onSelectionChange });
   const [sorting, setSorting] = React.useState<SortingState>([]);
   const [columnFilters, setColumnFilters] = React.useState<ColumnFiltersState>([]);
   const [columnVisibility, setColumnVisibility] = React.useState<VisibilityState>({});
@@ -70,6 +71,12 @@ export function DataTable<TData, TValue>({
         pageSize: 100,
       },
     },
+  });
+
+  console.log("Table state:", {
+    rows: table.getRowModel().rows.length,
+    pageIndex: table.getState().pagination.pageIndex,
+    pageSize: table.getState().pagination.pageSize
   });
 
   return (
