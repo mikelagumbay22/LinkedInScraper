@@ -392,7 +392,7 @@ export class JobScraper {
       '.jobs-search-results__list-item'
     ];
     
-    let jobCards: any = null;
+    let jobCards: ReturnType<typeof $> | null = null;
     let usedSelector = '';
     
     for (const selector of selectors) {
@@ -564,7 +564,7 @@ export class JobScraper {
     console.log('Parsing LinkedIn API HTML...');
     
     // Parse job cards from the API response
-    $('.base-card').each((index: number, element: any) => {
+    $('.base-card').each((index: number, element) => {
       const $element = $(element);
       
       const title = $element.find('.base-search-card__title').text().trim();
