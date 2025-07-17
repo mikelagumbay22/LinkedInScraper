@@ -17,15 +17,16 @@ export async function GET(request: Request) {
     const keywords = searchParams.get('keywords') || 'Python';
     const location = searchParams.get('location') || 'New York, United States';
     const pageNum = parseInt(searchParams.get('pageNum') || '0', 10); // Ensure pageNum is a number
+    const debug = searchParams.get('debug') === 'true'; // Add debug parameter
 
     // Fetch geoId from Supabase based on the location
     const { data: locationData, error: locationError } = await supabase
       .from('locations')
       .select('geoid')
       .eq('name', location)
-      .single(); // Get a single record
+      .limit(1); // Get only one record
 
-    if (locationError || !locationData) {
+    if (locationError) {
       console.error('Error fetching geoId:', locationError);
       return NextResponse.json(
         { 
@@ -37,29 +38,65 @@ export async function GET(request: Request) {
       );
     }
 
-    const geoId = locationData.geoid; // Use the fetched geoId
+    let geoId: string;
+    if (!locationData || locationData.length === 0) {
+      console.error('No location found for:', location);
+      // Use a default geoId for California
+      geoId = '102095887';
+      console.log('Using default geoId for California:', geoId);
+    } else {
+      geoId = locationData[0].geoid; // Use the first record
+      console.log('Found geoId for', location, ':', geoId);
+    }
 
     let jobs: ImportedJob[] = []; // Use the imported Job type
     
     // Set a longer timeout for the scraping operation
     const scrapePromise = (async () => {
       try {
-        if (method === 'default' || method === 'proxy') {
-          console.log('Using default method (proxy)');
-          jobs = await scraper.scrapeJobs(keywords, location, geoId, pageNum);
-        } else if (method === 'rss') {
-          console.log('Using RSS method');
-          jobs = await scraper.scrapeLinkedInRSS();
-        } else if (method === 'puppeteer') {
-          console.log('Using Puppeteer method');
-          jobs = await scraper.scrapeLinkedIn();
-        } else if (method === 'simple') {
-          console.log('Using simple method');
-          jobs = await scraper.scrapeLinkedInSimple();
+        console.log('Trying LinkedIn workarounds...');
+        
+        // Try RSS feed first (most reliable without login)
+        console.log('Trying RSS feed method...');
+        jobs = await scraper.scrapeLinkedInRSSFeed(keywords, location);
+        if (jobs.length > 0) {
+          console.log('RSS feed method successful, found', jobs.length, 'jobs');
+          return jobs;
         }
-        return jobs;
+        
+        // Try LinkedIn API method
+        console.log('Trying LinkedIn API method...');
+        jobs = await scraper.scrapeLinkedInAPI(keywords, location, geoId);
+        if (jobs.length > 0) {
+          console.log('LinkedIn API method successful, found', jobs.length, 'jobs');
+          return jobs;
+        }
+        
+        // Try Puppeteer without login as last resort
+        console.log('Trying Puppeteer without login...');
+        jobs = await scraper.scrapeLinkedIn();
+        if (jobs.length > 0) {
+          console.log('Puppeteer method successful, found', jobs.length, 'jobs');
+          return jobs;
+        }
+        
+        console.log('All methods failed to find jobs');
+        
+        // Try Indeed as fallback (much easier to scrape)
+        console.log('Trying Indeed as fallback...');
+        try {
+          jobs = await scraper.scrapeIndeed();
+          if (jobs.length > 0) {
+            console.log('Indeed method successful, found', jobs.length, 'jobs');
+            return jobs;
+          }
+        } catch (indeedError) {
+          console.log('Indeed scraping also failed:', indeedError);
+        }
+        
+        return [];
       } catch (error) {
-        console.error('Error in scraping method:', error);
+        console.error('Error in scraping methods:', error);
         throw error;
       }
     })();
@@ -72,25 +109,19 @@ export async function GET(request: Request) {
       jobs = await Promise.race([scrapePromise, scrapeTimeoutPromise]) as ImportedJob[];
     } catch (error) {
       console.error('Scraping error:', error);
-      console.log('Attempting fallback to simple method...');
-      try {
-        jobs = await scraper.scrapeLinkedInSimple();
-      } catch (fallbackError) {
-        console.error('Fallback method also failed:', fallbackError);
-        return new NextResponse(
-          JSON.stringify({
-            success: false,
-            error: 'All scraping methods failed',
-            details: error instanceof Error ? error.message : 'Unknown error'
-          }),
-          { 
-            status: 500,
-            headers: {
-              'Content-Type': 'application/json',
-            }
+      return new NextResponse(
+        JSON.stringify({
+          success: false,
+          error: 'LinkedIn scraping failed. This is likely due to LinkedIn anti-bot measures (login or CAPTCHA required).',
+          details: error instanceof Error ? error.message : 'Unknown error'
+        }),
+        { 
+          status: 500,
+          headers: {
+            'Content-Type': 'application/json',
           }
-        );
-      }
+        }
+      );
     }
 
     if (jobs.length === 0) {
@@ -103,6 +134,37 @@ export async function GET(request: Request) {
         jobCount: 0,
         message: 'No jobs found'
       });
+    }
+
+    // Debug mode: return raw HTML content
+    if (debug) {
+      try {
+        const targetUrl = `https://www.linkedin.com/jobs/search?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&geoId=${geoId}&f_TPR=r86400&position=1&pageNum=${pageNum}`;
+        const proxyUrl = `https://api.codetabs.com/v1/proxy?quest=${targetUrl}`;
+        
+        const response = await fetch(proxyUrl, {
+          headers: {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        
+        const html = await response.text();
+        
+        return NextResponse.json({
+          success: true,
+          debug: true,
+          htmlLength: html.length,
+          htmlSample: html.substring(0, 2000),
+          proxyUrl,
+          targetUrl
+        });
+      } catch (error) {
+        return NextResponse.json({
+          success: false,
+          debug: true,
+          error: error instanceof Error ? error.message : 'Debug failed'
+        });
+      }
     }
 
     // Process jobs to add industry and remote status

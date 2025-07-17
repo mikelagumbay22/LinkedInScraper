@@ -100,40 +100,49 @@ export class JobScraper {
   async scrapeLinkedIn(): Promise<Job[]> {
     try {
       console.log('Starting LinkedIn scraping with Puppeteer...');
-      
+      const email = process.env.LINKEDIN_EMAIL;
+      const password = process.env.LINKEDIN_PASSWORD;
+      if (!email || !password) {
+        throw new Error('LinkedIn credentials not set in environment variables');
+      }
       // Launch a headless browser
       const browser = await puppeteer.launch({
         headless: true,
         args: ['--no-sandbox', '--disable-setuid-sandbox']
       });
-      
       const page = await browser.newPage();
-      
-      // Set viewport and user agent
       await page.setViewport({ width: 1280, height: 800 });
       await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-      
+
+      // Go to LinkedIn login page
+      await page.goto('https://www.linkedin.com/login', { waitUntil: 'networkidle2', timeout: 60000 });
+      // Fill in login form
+      await page.type('input#username', email, { delay: 50 });
+      await page.type('input#password', password, { delay: 50 });
+      await Promise.all([
+        page.click('button[type="submit"]'),
+        page.waitForNavigation({ waitUntil: 'networkidle2', timeout: 60000 })
+      ]);
+      // Check for login success
+      const loginUrl = page.url();
+      if (loginUrl.includes('/login')) {
+        throw new Error('LinkedIn login failed. Check your credentials or for CAPTCHA.');
+      }
       // Navigate to LinkedIn jobs page
       const url = 'https://www.linkedin.com/jobs/search?keywords=Developer&location=California%2C%20United%20States&geoId=102095887&f_TPR=r86400&position=1&pageNum=0';
       console.log(`Navigating to ${url}`);
-      
       await page.goto(url, { waitUntil: 'networkidle2', timeout: 60000 });
-      
       // Wait for job listings to load
       await page.waitForSelector('.jobs-search__results-list', { timeout: 10000 })
         .catch(e => console.log('Selector not found, but continuing...', e.message));
-      
       // Get page content
       const content = await page.content();
       console.log('Page content retrieved, length:', content.length);
-      
       // Parse the content
       const jobs = this.parseLinkedIn(content);
-      
       // Close the browser
       await browser.close();
       console.log('Browser closed');
-      
       return jobs;
     } catch (error) {
       console.error('Error in scrapeLinkedIn:', error);
@@ -238,6 +247,88 @@ export class JobScraper {
     }
   }
 
+  // LinkedIn RSS Feed method - more reliable than HTML scraping
+  async scrapeLinkedInRSSFeed(keywords: string = 'Developer', location: string = 'California, United States'): Promise<Job[]> {
+    try {
+      console.log('Starting LinkedIn RSS feed scraping...');
+      
+      // LinkedIn RSS feed URL format
+      const encodedKeywords = encodeURIComponent(keywords);
+      const encodedLocation = encodeURIComponent(location);
+      const rssUrl = `https://www.linkedin.com/jobs/search?keywords=${encodedKeywords}&location=${encodedLocation}&f_TPR=r86400&position=1&pageNum=0&trk=public_jobs_jobs-search-bar_search-submit`;
+      
+      console.log('RSS URL:', rssUrl);
+      
+      const response = await axios.get(rssUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'application/rss+xml, application/xml, text/xml, */*',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Cache-Control': 'no-cache',
+          'Pragma': 'no-cache'
+        },
+        timeout: 30000
+      });
+      
+      console.log('RSS response status:', response.status);
+      console.log('RSS content length:', response.data.length);
+      
+      if (response.status === 200 && response.data) {
+        const jobs = this.parseLinkedInRSS(response.data);
+        jobs.forEach(job => {
+          job.source = `linkedin-rss (${location})`;
+        });
+        return jobs;
+      } else {
+        console.error('RSS feed request failed');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error in scrapeLinkedInRSSFeed:', error);
+      return [];
+    }
+  }
+
+  // Alternative: Use LinkedIn's public job search API
+  async scrapeLinkedInAPI(keywords: string = 'Developer', location: string = 'California, United States', geoId: string = '102095887'): Promise<Job[]> {
+    try {
+      console.log('Starting LinkedIn API scraping...');
+      
+      // LinkedIn's public job search API endpoint
+      const apiUrl = `https://www.linkedin.com/jobs-guest/jobs/api/seeMoreJobPostings/search?keywords=${encodeURIComponent(keywords)}&location=${encodeURIComponent(location)}&geoId=${geoId}&f_TPR=r86400&start=0&count=25`;
+      
+      console.log('API URL:', apiUrl);
+      
+      const response = await axios.get(apiUrl, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+          'Accept-Language': 'en-US,en;q=0.9',
+          'Referer': 'https://www.linkedin.com/jobs/search/',
+          'X-Requested-With': 'XMLHttpRequest'
+        },
+        timeout: 30000
+      });
+      
+      console.log('API response status:', response.status);
+      console.log('API content length:', response.data.length);
+      
+      if (response.status === 200 && response.data) {
+        const jobs = this.parseLinkedInAPI(response.data);
+        jobs.forEach((job: Job) => {
+          job.source = `linkedin-api (${location})`;
+        });
+        return jobs;
+      } else {
+        console.error('API request failed');
+        return [];
+      }
+    } catch (error) {
+      console.error('Error in scrapeLinkedInAPI:', error);
+      return [];
+    }
+  }
+
   private async scrapePage(
     url: string,
     source: string,
@@ -321,7 +412,7 @@ export class JobScraper {
     
     console.log(`Using selector: ${usedSelector}, found ${jobCards.length} job cards`);
     
-    jobCards.each((index: number, element: any) => {
+    jobCards.each((index: number, element) => {
       const $element = $(element);
       
       // Try multiple title selectors
@@ -463,6 +554,37 @@ export class JobScraper {
     });
 
     console.log(`Found ${jobs.length} jobs from simple method`);
+    return jobs;
+  }
+
+  private parseLinkedInAPI(html: string): Job[] {
+    const $: CheerioAPI = load(html);
+    const jobs: Job[] = [];
+
+    console.log('Parsing LinkedIn API HTML...');
+    
+    // Parse job cards from the API response
+    $('.base-card').each((index: number, element: any) => {
+      const $element = $(element);
+      
+      const title = $element.find('.base-search-card__title').text().trim();
+      const company = $element.find('.base-search-card__subtitle').text().trim();
+      const location = $element.find('.job-search-card__location').text().trim();
+      const url = $element.find('a.base-card__full-link').attr('href') || '';
+      
+      if (title && company) {
+        jobs.push({
+          title,
+          company,
+          location,
+          source: 'linkedin-api',
+          url: this.simplifyLinkedInJobUrl(url),
+          posted_at: new Date().toISOString()
+        });
+      }
+    });
+
+    console.log(`Found ${jobs.length} jobs from API`);
     return jobs;
   }
 
