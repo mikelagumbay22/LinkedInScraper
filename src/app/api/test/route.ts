@@ -102,7 +102,7 @@ export async function GET(request: Request) {
     })();
 
     const scrapeTimeoutPromise = new Promise((_, reject) => 
-      setTimeout(() => reject(new Error('Scraping operation timed out after 240 seconds')), 240000)
+      setTimeout(() => reject(new Error('Scraping operation timed out after 8 seconds')), 8000)
     );
 
     try {
