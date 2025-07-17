@@ -57,6 +57,8 @@ export class JobScraper {
         console.log('Proxy response status:', response.status);
         
         if (response.data && response.data.contents) {
+          console.log('HTML content length:', response.data.contents.length);
+          console.log('HTML sample (first 1000 chars):', response.data.contents.substring(0, 1000));
           const jobs = this.parseLinkedIn(response.data.contents);
           jobs.forEach(job => {
             job.source = `linkedin (${location})`;
@@ -64,6 +66,7 @@ export class JobScraper {
           return jobs;
         } else {
           console.error('No content in proxy response');
+          console.log('Response data keys:', Object.keys(response.data || {}));
           return [];
         }
       } catch (error) {
@@ -284,63 +287,117 @@ export class JobScraper {
     const jobs: Job[] = [];
 
     console.log('Parsing LinkedIn HTML...');
+    console.log('HTML length:', html.length);
     
-    // Try different selectors
-    const jobCards = $('.jobs-search__results-list li');
-    console.log('Job cards found:', jobCards.length);
+    // Try multiple modern LinkedIn selectors
+    const selectors = [
+      '.jobs-search__results-list li',
+      '.base-card',
+      '[data-job-id]',
+      '.job-result-card',
+      '.job-search-card',
+      '.job-card-container',
+      '.ember-view.jobs-search__result-item',
+      '.jobs-search-results__list-item'
+    ];
     
-    if (jobCards.length === 0) {
-      // Try alternative selectors
-      const altJobCards = $('.base-card');
-      console.log('Alternative job cards found:', altJobCards.length);
-      
-      altJobCards.each((index: number, element) => {
-        const $element = $(element);
-        
-        const title = $element.find('.base-search-card__title').text().trim();
-        const company = $element.find('.base-search-card__subtitle').text().trim();
-        const location = $element.find('.job-search-card__location').text().trim();
-        const url = $element.find('a.base-card__full-link').attr('href') || '';
-        
-        // Trim the URL to simplified form
-        const trimmedUrl = this.simplifyLinkedInJobUrl(url);
-        
-        if (title && company) {
-          jobs.push({
-            title,
-            company,
-            location,
-            source: 'linkedin',
-            url: trimmedUrl,
-            posted_at: new Date().toISOString()
-          });
-        }
-      });
-    } else {
-      // Use original selectors
-      jobCards.each((index: number, element) => {
-        const $element = $(element);
-        
-        const title = $element.find('.base-search-card__title').text().trim();
-        const company = $element.find('.base-search-card__subtitle').text().trim();
-        const location = $element.find('.job-search-card__location').text().trim();
-        const url = $element.find('a.base-card__full-link').attr('href') || '';
-        
-        // Trim the URL to simplified form
-        const trimmedUrl = this.simplifyLinkedInJobUrl(url);
-        
-        if (title && company) {
-      jobs.push({
-            title,
-            company,
-            location,
-        source: 'linkedin',
-            url: trimmedUrl,
-            posted_at: new Date().toISOString()
-          });
-        }
-      });
+    let jobCards: any = null;
+    let usedSelector = '';
+    
+    for (const selector of selectors) {
+      jobCards = $(selector);
+      console.log(`Selector "${selector}" found:`, jobCards.length, 'elements');
+      if (jobCards.length > 0) {
+        usedSelector = selector;
+        break;
+      }
     }
+    
+    if (!jobCards || jobCards.length === 0) {
+      console.log('No job cards found with any selector. HTML sample:');
+      console.log(html.substring(0, 2000));
+      return [];
+    }
+    
+    console.log(`Using selector: ${usedSelector}, found ${jobCards.length} job cards`);
+    
+    jobCards.each((index: number, element: any) => {
+      const $element = $(element);
+      
+      // Try multiple title selectors
+      const titleSelectors = [
+        '.base-search-card__title',
+        '.job-result-card__title',
+        '.job-search-card__title',
+        'h3',
+        '.job-title',
+        '[data-test-job-title]'
+      ];
+      
+      let title = '';
+      for (const titleSelector of titleSelectors) {
+        title = $element.find(titleSelector).text().trim();
+        if (title) break;
+      }
+      
+      // Try multiple company selectors
+      const companySelectors = [
+        '.base-search-card__subtitle',
+        '.job-result-card__company-name',
+        '.job-search-card__company-name',
+        '.company-name',
+        '[data-test-company-name]'
+      ];
+      
+      let company = '';
+      for (const companySelector of companySelectors) {
+        company = $element.find(companySelector).text().trim();
+        if (company) break;
+      }
+      
+      // Try multiple location selectors
+      const locationSelectors = [
+        '.job-search-card__location',
+        '.job-result-card__location',
+        '.job-location',
+        '.location',
+        '[data-test-location]'
+      ];
+      
+      let location = '';
+      for (const locationSelector of locationSelectors) {
+        location = $element.find(locationSelector).text().trim();
+        if (location) break;
+      }
+      
+      // Try multiple URL selectors
+      const urlSelectors = [
+        'a.base-card__full-link',
+        'a.job-result-card__link',
+        'a[href*="/jobs/view/"]',
+        'a[href*="/jobs/"]'
+      ];
+      
+      let url = '';
+      for (const urlSelector of urlSelectors) {
+        url = $element.find(urlSelector).attr('href') || '';
+        if (url) break;
+      }
+      
+      // Trim the URL to simplified form
+      const trimmedUrl = this.simplifyLinkedInJobUrl(url);
+      
+      if (title && company) {
+        jobs.push({
+          title,
+          company,
+          location,
+          source: 'linkedin',
+          url: trimmedUrl,
+          posted_at: new Date().toISOString()
+        });
+      }
+    });
 
     console.log(`Found ${jobs.length} jobs`);
     return jobs;
